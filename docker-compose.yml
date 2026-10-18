@@ -1,0 +1,22 @@
+services:
+  cyoa-dashboard:
+    build: .
+    image: cyoa-dashboard:latest
+    container_name: cyoa-dashboard
+    restart: unless-stopped
+    # Run as the host user so ./data stays owned by you (set in .env).
+    user: "${CYOA_UID:-1000}:${CYOA_GID:-1000}"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+    # Nginx Proxy Manager reaches this container by name on the shared network:
+    #   Forward Hostname/IP: cyoa-dashboard   Forward Port: 8000
+    #   Enable "Websockets Support" (the playtest terminal needs it).
+    networks:
+      - npm_network
+
+networks:
+  npm_network:
+    external: true
+    name: npm_network

@@ -26,6 +26,15 @@ def test_login_rate_limit(anon):
     assert anon.post("/api/login", json={"password": PASSWORD}).status_code == 429
 
 
+def test_global_login_limit(anon, monkeypatch):
+    from cyoa_server import auth
+
+    monkeypatch.setattr(auth, "MAX_GLOBAL_FAILURES", 3)
+    for _ in range(3):
+        auth.limiter.fail(auth.GLOBAL)
+    assert anon.post("/api/login", json={"password": PASSWORD}).status_code == 429
+
+
 def test_cross_site_writes_refused(client):
     r = client.post("/api/games", json={"title": "x"}, headers={"Origin": "https://evil.example"})
     assert r.status_code == 403

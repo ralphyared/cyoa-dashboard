@@ -36,6 +36,7 @@ interface SidebarScene {
   chapter: string | null
   ending: Scene['ending']
   text: string
+  tags: string[]
 }
 
 interface SidebarData {
@@ -53,6 +54,7 @@ function selectSidebar(game: GameDetail): SidebarData {
       chapter: s.chapter,
       ending: s.ending,
       text: s.text,
+      tags: s.tags,
     })),
     chapters: game.meta.chapters,
     start: game.meta.start_scene,
@@ -79,7 +81,12 @@ export function Sidebar() {
     const visible = data.scenes.filter((s) => {
       if (problemsOnly && !counts.has(s.id)) return false
       if (!q) return true
-      return matchScene(s as Scene, q) || s.text.toLowerCase().includes(q)
+      if (q.startsWith('#')) return s.tags.some((t) => t.toLowerCase() === q.slice(1))
+      return (
+        matchScene(s as Scene, q) ||
+        s.text.toLowerCase().includes(q) ||
+        s.tags.some((t) => t.toLowerCase().includes(q))
+      )
     })
     const known = new Set(data.chapters.map((c) => c.id))
     const result: { key: string; chapter: Chapter | null; scenes: SidebarScene[] }[] = data.chapters.map(
@@ -150,7 +157,7 @@ export function Sidebar() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search titles, ids, text…"
+            placeholder="Search titles, text, #tags…"
             className="h-7 w-full rounded-md border border-surface-700 bg-surface-950 pr-2 pl-7 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-accent-600"
           />
         </div>

@@ -459,7 +459,7 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
             placeholder="Ideas, todos, continuity reminders…"
           />
         </Field>
-        <Field label="Tags" hint="Comma separated. Search for them in the sidebar.">
+        <Field label="Tags" hint="Comma separated. Find them with #tag in the sidebar search.">
           <Input
             value={scene.tags.join(', ')}
             onChange={(e) =>

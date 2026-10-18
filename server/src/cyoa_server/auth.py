@@ -20,8 +20,10 @@ from .db import SessionRow, aware, now
 from .deps import get_config, get_db
 
 COOKIE = "cyoa_session"
-MAX_FAILURES = 5
+MAX_FAILURES = 5  # per client address
+MAX_GLOBAL_FAILURES = 50  # all clients together (addresses behind a proxy can be faked)
 FAILURE_WINDOW = 15 * 60  # seconds
+GLOBAL = "*"
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
@@ -37,8 +39,8 @@ class _Limiter:
             q.popleft()
         return q
 
-    def blocked(self, key: str) -> bool:
-        return len(self._prune(key)) >= MAX_FAILURES
+    def blocked(self, key: str, limit: int = MAX_FAILURES) -> bool:
+        return len(self._prune(key)) >= limit
 
     def fail(self, key: str) -> None:
         self._prune(key).append(time.monotonic())
@@ -102,10 +104,11 @@ def login(
 ) -> dict[str, bool]:
     config = get_config(request)
     ip = _client_ip(request)
-    if limiter.blocked(ip):
+    if limiter.blocked(ip) or limiter.blocked(GLOBAL, MAX_GLOBAL_FAILURES):
         raise HTTPException(429, "too many attempts; try again in a few minutes")
     if not hmac.compare_digest(body.password.encode(), config.password.encode()):
         limiter.fail(ip)
+        limiter.fail(GLOBAL)
         raise HTTPException(401, "wrong password")
     limiter.reset(ip)
     token = secrets.token_urlsafe(32)
