@@ -53,22 +53,28 @@ snapshot a day, the last 14 kept; more from the Backups page).
 
 **Updating:** `git pull && docker compose up -d --build`.
 
-## Playing a game
+## Sharing a game
 
-Export the game (*Export → Game file for players*), then:
+*Export → Ready-to-play game* builds a download for your players' system:
 
-```sh
-cyoa-play my_game.cyoa.json        # or put the file next to the player and run it
-cyoa-play my_game.cyoa.json --check  # list problems without playing
-```
+- **Windows:** one `<Title>.exe`. The story is attached to a copy of the player,
+  so double-clicking it starts the game.
+- **Linux:** the same single program, in a `.tar.gz` (keeps it executable).
+- **macOS:** a zip with the player, the story file and a short "How to play".
+  Apple only runs programs whose signature matches, so the Mac player is shipped
+  unmodified and finds the story next to it.
 
-Standalone executables for Windows, macOS and Linux (no Python needed) are built
-by the *Player executables* GitHub Actions workflow: push a tag like
-`player-v1.0.0` and they're attached to a GitHub release. To share a game, zip the
-`.cyoa.json` file together with the executables.
+The player builds come from this repo's GitHub releases: the *Player executables*
+workflow builds them for every system when a tag like `player-v1.0.0` is pushed,
+and the dashboard downloads the newest release the first time you export (or when
+you click "Check for a newer player"). The repo must be public for that, or set
+`CYOA_PLAYER_REPO` to a public repo that publishes the same assets.
 
-Saves go to the player's user data folder (e.g. `~/.local/share/cyoa/saves` on
-Linux, `%LOCALAPPDATA%\cyoa\saves` on Windows).
+Players' saves go to their user data folder (e.g. `%LOCALAPPDATA%\cyoa\saves` on
+Windows, `~/.local/share/cyoa/saves` on Linux), one folder per story.
+
+The bare game file (*Export → Game file only*) can also be played with
+`cyoa-play my_game.cyoa.json`, or checked with `cyoa-play my_game.cyoa.json --check`.
 
 ## Development
 

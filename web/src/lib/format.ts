@@ -75,7 +75,10 @@ export async function downloadFile(url: string) {
   }
   const blob = await response.blob()
   const disposition = response.headers.get('content-disposition') ?? ''
-  const name = /filename="([^"]+)"/.exec(disposition)?.[1] ?? 'download'
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1]
+  const name = encoded
+    ? decodeURIComponent(encoded)
+    : (/filename="([^"]+)"/.exec(disposition)?.[1] ?? 'download')
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
   link.download = name

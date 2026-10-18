@@ -14,8 +14,9 @@ from rich.console import Console
 from rich.text import Text
 
 from .. import __version__
-from ..model import Game, GameFileError, load_game
+from ..model import Game, GameFileError, game_from_text, load_game
 from ..runtime import GameError, GameState, Runtime
+from ..standalone import attached_game, is_frozen
 from ..validate import Severity, validate
 from .app import Player, StateSink
 from .storage import OptionsStore, SaveStore
@@ -57,7 +58,7 @@ def _parser() -> argparse.ArgumentParser:
 def find_game_file() -> Path | None:
     """With no argument, look for a single game next to the player or in the current folder."""
     folders = [Path.cwd()]
-    if getattr(sys, "frozen", False):
+    if is_frozen():
         folders.insert(0, Path(sys.executable).resolve().parent)
     for folder in folders:
         found = sorted(folder.glob(f"*{GAME_SUFFIX}"))
@@ -138,18 +139,43 @@ def _starting_state(game: Game, args: argparse.Namespace) -> GameState | None:
     return state
 
 
+def _wait_before_closing(console: Console) -> None:
+    """A double-clicked standalone game opens its own window, which closes the
+    moment the program exits; keep it open so the player can read the message."""
+    if is_frozen() and sys.stdin.isatty():
+        with contextlib.suppress(EOFError, KeyboardInterrupt):
+            console.input("\nPress Enter to close.")
+
+
+def _load(args: argparse.Namespace, console: Console) -> Game | None:
+    try:
+        if args.game:
+            return load_game(Path(args.game))
+        attached = attached_game()
+        if attached is not None:
+            return game_from_text(attached.decode("utf-8", errors="replace"), "the built-in game")
+        path = find_game_file()
+        if path is None:
+            console.print(f"No game file found. Usage: cyoa-play GAME{GAME_SUFFIX}", style="red")
+            return None
+        return load_game(path)
+    except GameFileError as e:
+        console.print(f"Can't open the game: {e}", style="red")
+        return None
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     console = _message_console()
+    code = _main(args, console)
+    if code == 2:
+        _wait_before_closing(console)
+    return code
 
-    path = Path(args.game) if args.game else find_game_file()
-    if path is None:
-        console.print(f"No game file found. Usage: cyoa-play GAME{GAME_SUFFIX}", style="red")
-        return 2
-    try:
-        game = load_game(path)
-    except GameFileError as e:
-        console.print(f"Can't open the game: {e}", style="red")
+
+def _main(args: argparse.Namespace, console: Console) -> int:
+    game = _load(args, console)
+    if game is None:
         return 2
 
     if args.check:

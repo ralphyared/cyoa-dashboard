@@ -123,14 +123,17 @@ take("arrow")`}</Block>
 
       <Section title="Sharing your game">
         <p>
-          Use <b>Export → Game file for players</b> to download <Code>your_game.cyoa.json</Code> (this only
-          works when there are no errors). Players run it with the terminal player:
+          Use <b>Export → Ready-to-play game</b> and pick your players' system. Windows players get a
+          single <Code>.exe</Code> named after your story; they double-click it and play. Mac players get
+          a zip with the game and its player (Apple only runs signed programs, so the player can't be
+          changed to carry the story inside it). Linux players get a single program. Exporting only
+          works when the game has no errors.
         </p>
-        <Block>{`cyoa-play your_game.cyoa.json`}</Block>
         <p>
-          If the game file sits next to the player program, double-clicking the player is enough.
-          “Project backup” keeps everything, including your private notes, so you can import it into
-          another dashboard.
+          Players' saves are kept per story on their computer, so different games never mix their saves.
+          <b> Project backup</b> keeps everything, including your private notes, so you can import it
+          into another dashboard. <b>Game file only</b> is the bare story file, for anyone who already has
+          the player (<Code>cyoa-play your_game.cyoa.json</Code>).
         </p>
       </Section>
     </PageShell>

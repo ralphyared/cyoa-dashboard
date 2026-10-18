@@ -12,9 +12,10 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, backups, playtest, routes_games, routes_scenes, routes_tools
+from . import auth, backups, playtest, routes_games, routes_players, routes_scenes, routes_tools
 from .config import Config
 from .db import Database
+from .players import PlayerStore
 
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
@@ -39,6 +40,7 @@ def create_app(config: Config, *, run_backups: bool = True) -> FastAPI:
     app.state.config = config
     app.state.db = Database(config.db_path)
     app.state.playtests = 0
+    app.state.players = PlayerStore(config.data_dir / "players", config.player_repo)
 
     @app.middleware("http")
     async def check_origin(
@@ -53,7 +55,15 @@ def create_app(config: Config, *, run_backups: bool = True) -> FastAPI:
             response.headers.setdefault("Cache-Control", "no-store")
         return response
 
-    for module in (auth, routes_games, routes_scenes, routes_tools, backups, playtest):
+    for module in (
+        auth,
+        routes_games,
+        routes_scenes,
+        routes_tools,
+        routes_players,
+        backups,
+        playtest,
+    ):
         app.include_router(module.router)
 
     @app.get("/api/health", include_in_schema=False)

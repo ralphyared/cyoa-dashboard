@@ -1,6 +1,7 @@
 # Builds the standalone terminal player for Windows, macOS and Linux.
-# Push a tag like `player-v1.0.0` to publish the executables as a GitHub release,
-# or run it by hand from the Actions tab to just get the files as artifacts.
+# Push a tag like `player-v1.0.0` to publish the executables as a GitHub release
+# (the dashboard downloads them from there for "Ready-to-play game" exports), or
+# run it by hand from the Actions tab to just get the files as artifacts.
 name: Player executables
 
 on:
@@ -26,23 +27,40 @@ jobs:
           - os: macos-15-intel
             asset: cyoa-play-macos-x64
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
       - name: Build
-        shell: bash
         run: |
-          uv venv
-          uv pip install ./engine pyinstaller
-          uv run --no-project pyinstaller --onefile --console --name cyoa-play \
+          python -m pip install --upgrade pip
+          python -m pip install ./engine pyinstaller
+          pyinstaller --onefile --console --name cyoa-play \
             --collect-submodules rich._unicode_data engine/packaging/cyoa_play.py
-          if [ "$RUNNER_OS" = "Windows" ]; then mv dist/cyoa-play.exe "dist/${{ matrix.asset }}"; \
+          if [ "$RUNNER_OS" = "Windows" ]; then mv dist/cyoa-play.exe "dist/${{ matrix.asset }}"
           else mv dist/cyoa-play "dist/${{ matrix.asset }}"; fi
       - name: Smoke test
-        shell: bash
         run: ./dist/${{ matrix.asset }} --version
+      - name: Smoke test with a story attached
+        # macOS exports ship the player unmodified (see server players.py), so
+        # this step is informational there.
+        continue-on-error: ${{ startsWith(matrix.os, 'macos') }}
+        run: |
+          python - <<'EOF'
+          import json, pathlib
+          from cyoa.standalone import attach
+          game = {"format": 1, "id": "ci", "title": "CI", "start_scene": "a",
+                  "scenes": [{"id": "a", "text": "Hello", "ending": {"kind": "victory"}}]}
+          exe = pathlib.Path("dist/${{ matrix.asset }}")
+          out = pathlib.Path("smoke" + exe.suffix)
+          out.write_bytes(attach(exe.read_bytes(), json.dumps(game).encode()))
+          out.chmod(0o755)
+          EOF
+          ./smoke* --check
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset }}
@@ -62,8 +80,5 @@ jobs:
           files: dist/*
           body: |
             Standalone terminal player for games made with the CYOA Dashboard.
-            Put your game's `.cyoa.json` file next to the player and run it
-            (or run `cyoa-play your_game.cyoa.json`).
-
-            macOS: the first time, right-click the file and choose Open (it isn't signed).
-            Windows: if SmartScreen warns you, choose "More info" then "Run anyway".
+            The dashboard uses these for "Export → Ready-to-play game"; you don't
+            need to download them yourself.

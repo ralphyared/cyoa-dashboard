@@ -136,6 +136,8 @@ class Player:
 
     def run(self, state: GameState | None = None) -> None:
         """Play from ``state`` if given (playtest), otherwise start at the title screen."""
+        if self.term.interactive:
+            self.term.console.set_window_title(self.game.title)
         try:
             if state is not None:
                 with contextlib.suppress(_BackToTitle):

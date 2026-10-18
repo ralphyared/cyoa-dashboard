@@ -229,3 +229,10 @@ export interface PlaytestState {
   active_rules: string[]
   steps: number
 }
+
+export interface PlayerStatus {
+  repo: string
+  version: string | null
+  checked_at: string | null
+  platforms: { key: string; label: string; available: boolean }[]
+}

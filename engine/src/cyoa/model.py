@@ -201,13 +201,17 @@ def game_from_dict(data: Any) -> Game:
         ) from e
 
 
+def game_from_text(text: str, source: str = "the game file") -> Game:
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise GameFileError(f"{source} is not valid JSON (line {e.lineno}: {e.msg})") from e
+    return game_from_dict(data)
+
+
 def load_game(path: str | Path) -> Game:
     try:
         text = Path(path).read_text(encoding="utf-8")
     except OSError as e:
         raise GameFileError(f"can't read {path}: {e.strerror or e}") from e
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError as e:
-        raise GameFileError(f"{path} is not valid JSON (line {e.lineno}: {e.msg})") from e
-    return game_from_dict(data)
+    return game_from_text(text, str(path))

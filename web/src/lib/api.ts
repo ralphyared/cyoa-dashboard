@@ -7,6 +7,7 @@ import type {
   IssuesResponse,
   Location,
   Meta,
+  PlayerStatus,
   RefKind,
   Reference,
   Revision,
@@ -86,6 +87,10 @@ export const api = {
   importGame: (data: unknown) => post<GameDetail>('/api/games/import', data),
   exportUrl: (gameId: string, format: 'player' | 'project') =>
     `${g(gameId)}/export?format=${format}`,
+  standaloneUrl: (gameId: string, platform: string) =>
+    `${g(gameId)}/standalone?platform=${encodeURIComponent(platform)}`,
+  players: () => get<PlayerStatus>('/api/players'),
+  updatePlayers: () => post<PlayerStatus>('/api/players/update'),
 
   createScene: (gameId: string, fields: Partial<SceneFields> & { id?: string }) =>
     post<Scene>(`${g(gameId)}/scenes`, fields),

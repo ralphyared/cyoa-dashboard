@@ -36,6 +36,9 @@ CLI player, the server's validation/export, and the in-browser playtest all use 
   them in `Runtime.problems`.
 - `validate.py` — all issues (errors block player export) + stats.
 - `refactor.py` — find/rename variables, items, scenes, chapters everywhere.
+- `standalone.py` — attach a game to a player executable (`[exe][json][MAGIC][len]`);
+  PyInstaller's bootloader scans back-to-front for its own marker, so trailing data
+  is safe. The player loads an attached game when started without arguments.
 - `player/` — rich-based terminal player. `Terminal` wraps IO so tests drive it
   with scripted input. `--debug` adds `:goto/:set/:give` and `--state-fd` streams
   state as JSON lines (used by the playtest panel).
@@ -48,6 +51,9 @@ CLI player, the server's validation/export, and the in-browser playtest all use 
 - Optimistic concurrency: clients send `rev`; mismatch → 409.
 - `playtest.py` — WebSocket that runs `python -m cyoa --debug` in a pty (no shell),
   restarting it with a modified state for side-panel edits / reload.
+- `players.py` / `routes_players.py` — "Ready-to-play" exports: downloads player
+  builds from the repo's `player-v*` GitHub releases into `<data>/players/`, then
+  Windows/Linux = player + attached game, macOS = zip of unmodified player + game file.
 - Auth: single password (`CYOA_PASSWORD`), server-side sessions, Origin checks on
   writes and the WebSocket.
 

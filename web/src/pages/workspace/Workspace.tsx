@@ -8,6 +8,7 @@ import {
   CloudOff,
   Download,
   FileJson,
+  Gamepad2,
   GitBranch,
   Layers,
   ListTree,
@@ -59,6 +60,7 @@ import { CommandPalette } from './CommandPalette'
 import { useWorkspace, WorkspaceContext, type PanelKind, type PlaytestRequest } from './context'
 import { IssuesPanel, issueTitle } from './IssuesPanel'
 import { Sidebar } from './Sidebar'
+import { StandaloneDialog } from './StandaloneDialog'
 
 const PlaytestPanel = lazy(() => import('./PlaytestPanel').then((m) => ({ default: m.PlaytestPanel })))
 
@@ -216,6 +218,7 @@ function TopBar() {
   const issues = useIssues(gameId)
   const { panel, setPanel, playtest, openPalette } = useWorkspace()
   const [exportErrors, setExportErrors] = useState<Issue[] | null>(null)
+  const [standaloneOpen, setStandaloneOpen] = useState(false)
   const navigate = useNavigate()
   const scenes = useScenes(gameId)
   const scenePk = useGame(gameId, (g) => {
@@ -319,8 +322,11 @@ function TopBar() {
             </Button>
           </MenuTrigger>
           <MenuContent>
+            <MenuItem icon={<Gamepad2 className="size-3.5" />} onSelect={() => setStandaloneOpen(true)}>
+              Ready-to-play game (Windows, Mac, Linux)…
+            </MenuItem>
             <MenuItem icon={<Play className="size-3.5" />} onSelect={() => void exportPlayer()}>
-              Game file for players (.cyoa.json)
+              Game file only (.cyoa.json)
             </MenuItem>
             <MenuItem
               icon={<FileJson className="size-3.5" />}
@@ -331,6 +337,7 @@ function TopBar() {
           </MenuContent>
         </Menu>
       </div>
+      <StandaloneDialog open={standaloneOpen} onOpenChange={setStandaloneOpen} />
       <Dialog
         open={exportErrors !== null}
         onOpenChange={(open) => !open && setExportErrors(null)}

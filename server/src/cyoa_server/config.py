@@ -23,6 +23,7 @@ class Config:
     playtest_limit: int = 4
     playtest_idle_minutes: int = 60
     backup_keep: int = 14
+    player_repo: str = "ralphyared/cyoa-dashboard"
 
     @property
     def db_path(self) -> Path:
@@ -47,4 +48,5 @@ class Config:
             playtest_limit=int(os.environ.get("CYOA_PLAYTEST_LIMIT", "4")),
             playtest_idle_minutes=int(os.environ.get("CYOA_PLAYTEST_IDLE_MINUTES", "60")),
             backup_keep=int(os.environ.get("CYOA_BACKUP_KEEP", "14")),
+            player_repo=os.environ.get("CYOA_PLAYER_REPO", "ralphyared/cyoa-dashboard"),
         )
