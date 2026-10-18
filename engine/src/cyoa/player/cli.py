@@ -68,8 +68,14 @@ def find_game_file() -> Path | None:
     return None
 
 
+def _message_console() -> Console:
+    """Output for command-line messages: never hard-wrapped, so paths and errors
+    stay intact when copied, piped or grepped (the terminal wraps them instead)."""
+    return Console(highlight=False, emoji=False, soft_wrap=True)
+
+
 def _pick(files: list[Path]) -> Path | None:
-    console = Console(highlight=False)
+    console = _message_console()
     console.print("Several games found:")
     for i, f in enumerate(files, start=1):
         console.print(f"  {i}) {f.name}")
@@ -134,7 +140,7 @@ def _starting_state(game: Game, args: argparse.Namespace) -> GameState | None:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    console = Console(highlight=False, emoji=False)
+    console = _message_console()
 
     path = Path(args.game) if args.game else find_game_file()
     if path is None:
@@ -168,9 +174,8 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, ValueError, GameError) as e:
         console.print(f"Can't start there: {e}", style="red")
         return 2
-    player = Player(
-        game, Terminal(console), saves=saves, options=options, debug=args.debug, state_sink=sink
-    )
+    screen = Terminal(Console(highlight=False, emoji=False))
+    player = Player(game, screen, saves=saves, options=options, debug=args.debug, state_sink=sink)
     player.run(start)
     return 0
 

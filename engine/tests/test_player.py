@@ -256,6 +256,18 @@ def test_cli_bad_files(tmp_path, capsys):
     assert main([str(tmp_path / "missing.cyoa.json")]) == 2
 
 
+def test_cli_messages_are_not_hard_wrapped(tmp_path, capsys, monkeypatch):
+    monkeypatch.setenv("COLUMNS", "40")
+    deep = tmp_path / ("very_long_folder_name_" * 4)
+    deep.mkdir()
+    bad = deep / "bad.cyoa.json"
+    bad.write_text("{not json")
+    assert main([str(bad)]) == 2
+    out = capsys.readouterr().out
+    assert f"{bad} is not valid JSON" in out
+    assert out.count("\n") == 1
+
+
 def test_cli_finds_single_game_in_folder(game_file, monkeypatch, capsys):
     monkeypatch.chdir(game_file.parent)
     assert main(["--check"]) == 0
