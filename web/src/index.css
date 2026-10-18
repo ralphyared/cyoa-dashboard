@@ -1,0 +1,141 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, 'JetBrains Mono', 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
+  --color-accent-300: #67e8f9;
+  --color-accent-400: #22d3ee;
+  --color-accent-500: #06b6d4;
+  --color-accent-600: #0891b2;
+  --color-surface-950: #09090b;
+  --color-surface-900: #111114;
+  --color-surface-850: #16161a;
+  --color-surface-800: #1c1c21;
+  --color-surface-700: #27272e;
+  --color-surface-600: #3a3a44;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-surface-950);
+  color: var(--color-zinc-200);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent-500) 35%, transparent);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-surface-600) transparent;
+}
+
+/* CodeMirror */
+.cm-editor {
+  background: var(--color-surface-900);
+  border: 1px solid var(--color-surface-700);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+.cm-editor.cm-focused {
+  outline: none;
+  border-color: var(--color-accent-600);
+  box-shadow: 0 0 0 1px var(--color-accent-600);
+}
+.cm-editor .cm-scroller {
+  font-family: var(--font-mono);
+  line-height: 1.6;
+}
+.cm-editor.cm-prose .cm-scroller {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+.cm-editor .cm-content {
+  padding: 0.4rem 0;
+  caret-color: var(--color-accent-400);
+}
+.cm-editor .cm-line {
+  padding: 0 0.6rem;
+}
+.cm-editor .cm-cursor {
+  border-left-color: var(--color-accent-400);
+}
+.cm-editor .cm-selectionBackground,
+.cm-editor.cm-focused .cm-selectionBackground {
+  background: color-mix(in srgb, var(--color-accent-500) 30%, transparent) !important;
+}
+.cm-editor .cm-placeholder {
+  color: var(--color-zinc-600);
+}
+.cm-editor .cm-lintRange-error {
+  background-image: none;
+  text-decoration: underline wavy #f87171;
+  text-underline-offset: 3px;
+}
+.cm-editor .cm-lintRange-warning {
+  background-image: none;
+  text-decoration: underline wavy #fbbf24;
+  text-underline-offset: 3px;
+}
+.cm-tooltip {
+  background: var(--color-surface-800) !important;
+  border: 1px solid var(--color-surface-600) !important;
+  border-radius: 0.375rem;
+  color: var(--color-zinc-200);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+}
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: var(--color-accent-600) !important;
+  color: white !important;
+}
+.cm-tooltip-autocomplete .cm-completionDetail {
+  color: var(--color-zinc-400);
+  font-style: normal;
+  margin-left: 0.75rem;
+}
+.cm-diagnostic {
+  padding: 0.3rem 0.6rem;
+}
+.cm-diagnostic-error {
+  border-left-color: #f87171;
+}
+
+/* React Flow */
+.react-flow {
+  --xy-background-color: var(--color-surface-950);
+  --xy-edge-stroke: #52525b;
+  --xy-edge-stroke-selected: var(--color-accent-400);
+  --xy-connectionline-stroke: var(--color-accent-400);
+  --xy-minimap-background-color: var(--color-surface-900);
+  --xy-controls-button-background-color: var(--color-surface-800);
+  --xy-controls-button-background-color-hover: var(--color-surface-700);
+  --xy-controls-button-color: var(--color-zinc-200);
+  --xy-controls-button-border-color: var(--color-surface-600);
+  --xy-attribution-background-color: transparent;
+}
+.react-flow__edge-textbg {
+  fill: var(--color-surface-900);
+}
+.react-flow__edge-text {
+  fill: var(--color-zinc-400);
+  font-size: 10px;
+}
+
+/* xterm */
+.xterm {
+  padding: 6px;
+  height: 100%;
+}
+.xterm-viewport {
+  background: #0b0b0e !important;
+}
