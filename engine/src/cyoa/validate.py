@@ -543,10 +543,15 @@ def has_errors(issues: list[Issue]) -> bool:
 _WORD_RE = re.compile(r"[A-Za-z0-9’']+")
 
 
-def word_count(scene: Scene) -> int:
-    text = re.sub(r"\{[^}]*\}", " ", scene.text)
+def text_word_count(text: str) -> int:
+    """Words a player reads: tags, interpolations and styling don't count."""
+    text = re.sub(r"\{[^}]*\}", " ", text)
     text = re.sub(r"\[/?[A-Za-z_#0-9]*\]", " ", text)
     return len(_WORD_RE.findall(text))
+
+
+def word_count(scene: Scene) -> int:
+    return text_word_count(scene.text)
 
 
 def game_stats(game: Game) -> dict[str, Any]:

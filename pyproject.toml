@@ -2,16 +2,16 @@
 name = "cyoa-dashboard"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["cyoa"]
+dependencies = ["cyoa", "cyoa-server"]
 
 [tool.uv]
 package = false
 
 [tool.uv.workspace]
-members = ["engine"]
+members = ["engine", "server"]
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6", "pyright>=1.1.380"]
+dev = ["pytest>=8", "ruff>=0.6", "pyright>=1.1.380", "httpx2"]
 
 [tool.ruff]
 line-length = 100
@@ -22,15 +22,16 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 ignore = ["RUF001", "RUF002", "RUF003"]
 
 [tool.pytest.ini_options]
-testpaths = ["engine/tests"]
+testpaths = ["engine/tests", "server/tests"]
 
 [tool.pyright]
-include = ["engine/src"]
+include = ["engine/src", "server/src"]
 pythonVersion = "3.12"
 typeCheckingMode = "standard"
 
 [tool.uv.sources]
 cyoa = { workspace = true }
+cyoa-server = { workspace = true }
 
 [tool.ruff.lint.isort]
 known-first-party = ["cyoa", "cyoa_server"]
