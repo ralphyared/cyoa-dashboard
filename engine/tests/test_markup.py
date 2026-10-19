@@ -6,6 +6,7 @@ from cyoa.expr import ExprError, RefKind
 from cyoa.expr.evaluator import evaluate
 from cyoa.markup import (
     StyledSpan,
+    effect_tag_problems,
     escape,
     parse_template,
     plain,
@@ -195,3 +196,63 @@ def test_rename_in_markup():
 
 def test_unknown_style_tags():
     assert unknown_style_tags("[rde]x[/rde] [red]y[/red] [/]") == [("rde", 6, 12)]
+
+
+# -- timing effects ----------------------------------------------------------------
+
+
+def test_effect_spans():
+    [page] = style("[glitch]drip[/glitch] [type slow]slow[/type] [type]norm[/] [pause 2]end")
+    shown = [(s.text, s.effect, s.pause) for s in page]
+    assert shown == [
+        ("drip", "glitch", 0.0),
+        (" ", None, 0.0),
+        ("slow", "type_slow", 0.0),
+        (" ", None, 0.0),
+        ("norm", "type", 0.0),
+        (" ", None, 0.0),
+        ("", None, 2.0),
+        ("end", None, 0.0),
+    ]
+
+
+def test_effects_combine_with_styles():
+    [page] = style("[red][glitch]a[/glitch][/red] [glitch]**b**[/glitch]")
+    assert [(s.text, s.color, s.bold, s.effect) for s in page] == [
+        ("a", "red", False, "glitch"),
+        (" ", None, False, None),
+        ("b", None, True, "glitch"),
+    ]
+
+
+def test_pause_alone_on_a_line_leaves_no_blank_line():
+    [page] = style("drip\n[pause 2]\nYou wake.\n\n  [pause]  \nLater.\n[pause 3]")
+    assert plain([page]) == "drip\nYou wake.\n\nLater."
+    assert [s.pause for s in page if s.pause] == [2.0, 1.0, 3.0]
+
+
+@pytest.mark.parametrize(
+    "text", ["[pause soon]", "[pause 0]", "[pause 99]", "[type sideways]x", "[glitch 3]x"]
+)
+def test_invalid_effect_tags_are_plain_text(text):
+    [page] = style(text)
+    assert all(s.effect is None and not s.pause for s in page)
+    assert plain([page]) == text
+
+
+def test_effect_tag_problems():
+    problems = effect_tag_problems("[pause soon] [pause 2] [type sideways] [glitch x] [type fast]")
+    assert [p[0].split(",")[0] for p in problems] == [
+        "[pause] needs a number of seconds up to 30",
+        "use [type]",
+        "[glitch] doesn't take a setting",
+    ]
+
+
+def test_escaped_effect_tags_stay_literal():
+    assert plain(style(r"\[pause 2]")) == "[pause 2]"
+    assert effect_tag_problems(r"\[pause soon]") == []
+
+
+def test_effect_closing_tags_are_known():
+    assert unknown_style_tags("[type]a[/type] [glitch]b[/glitch]") == []

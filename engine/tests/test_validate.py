@@ -206,3 +206,11 @@ def test_player_export_strips_author_fields(game):
     assert "notes" not in data["scenes"][0]
     assert "position" not in data["scenes"][0]
     assert game.to_project_dict()["scenes"][0]["notes"] == "secret"
+
+
+def test_invalid_effect_warning():
+    game = make_game()
+    game.scenes[0].text = "Wait [pause soon] for it."
+    [issue] = [i for i in validate(game) if i.code == "invalid_effect"]
+    assert issue.severity == "warning"
+    assert game.scenes[0].text[issue.start : issue.end] == "[pause soon]"

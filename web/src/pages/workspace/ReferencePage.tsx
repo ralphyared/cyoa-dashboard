@@ -51,6 +51,23 @@ You remember the way from last time.
         </p>
       </Section>
 
+      <Section title="Timing & effects">
+        <p>
+          Make text arrive with a sense of time. Effects play when a scene first appears (not when
+          it's redrawn after the inventory or a save), players can press Enter to skip them, and
+          they can turn them off in the player's Options.
+        </p>
+        <Block>{`[glitch]drip drip drip[/glitch]          ← flickers in as scrambled symbols, then settles
+[pause 2]                                 ← waits 2 seconds (alone on a line: no blank line)
+You wake to the sound of water droplets…
+[type slow]Your memory is blurry…[/type]  ← types out letter by letter (also [type], [type fast])`}</Block>
+        <p>
+          <Code>[pause]</Code> on its own waits 1 second; up to 30 seconds is allowed. Effects mix
+          with colors and bold, e.g. <Code>[red][glitch]RUN[/glitch][/red]</Code>. The ✦ button
+          above the scene text inserts them for you.
+        </p>
+      </Section>
+
       <Section title="Conditions">
         <p>
           Used on choices (only available if…), in rules, and in <Code>{'{if …}'}</Code> text. A condition must

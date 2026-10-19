@@ -130,9 +130,9 @@ def test_overwrite_requires_confirmation(tmp_path):
 
 
 def test_options_persist(tmp_path):
-    run(["2", "1", "2", "3", "", "3"], tmp_path)
+    run(["2", "1", "2", "3", "4", "", "3"], tmp_path)
     options = OptionsStore(tmp_path / "options.json").load()
-    assert options == Options(typewriter=True, speed="fast", width=60)
+    assert options == Options(typewriter=True, speed="fast", width=60, effects=False)
 
 
 def test_intro_and_multi_page_scene(tmp_path):

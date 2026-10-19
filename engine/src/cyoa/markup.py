@@ -282,9 +282,31 @@ TEXT_STYLES = {"bold", "italic", "underline", "dim"}
 STYLE_NAMES = frozenset(COLORS) | TEXT_STYLES
 _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
+# Timing effects. [pause N] waits; [type]/[type slow]/[type fast] and [glitch] wrap text.
+EFFECT_TAGS = frozenset({"pause", "type", "glitch"})
+TYPE_SPEEDS = {None: "type", "slow": "type_slow", "fast": "type_fast"}
+EFFECTS = frozenset({"glitch", *TYPE_SPEEDS.values()})
+MAX_PAUSE = 30.0
+
 
 def is_style_name(name: str) -> bool:
     return name.lower() in STYLE_NAMES or bool(_HEX_RE.match(name))
+
+
+def is_tag_name(name: str) -> bool:
+    """Anything that may appear as ``[name]`` / ``[/name]`` markup."""
+    return is_style_name(name) or name.lower() in EFFECT_TAGS
+
+
+def pause_seconds(arg: str | None) -> float | None:
+    """Seconds for ``[pause]`` / ``[pause N]``; None if N isn't a sensible duration."""
+    if arg is None:
+        return 1.0
+    try:
+        seconds = float(arg)
+    except ValueError:
+        return None
+    return seconds if 0 < seconds <= MAX_PAUSE else None
 
 
 @dataclass(frozen=True, slots=True)
@@ -295,6 +317,8 @@ class StyledSpan:
     underline: bool = False
     dim: bool = False
     color: str | None = None  # a rich color name or #rrggbb
+    effect: str | None = None  # "glitch", "type", "type_slow", "type_fast"
+    pause: float = 0.0  # > 0: a pause marker (its text is empty)
 
     def rich_style(self) -> str:
         parts = [
@@ -311,19 +335,39 @@ class StyledSpan:
             parts.append(self.color)
         return " ".join(parts)
 
+    def without_effects(self) -> StyledSpan:
+        return StyledSpan(self.text, self.bold, self.italic, self.underline, self.dim, self.color)
+
 
 Page = list[StyledSpan]
 
-_TAG_RE = re.compile(r"\[(/?)([A-Za-z_]+|#[0-9a-fA-F]{6})?\]")
+_TAG_RE = re.compile(r"\[(/?)([A-Za-z_]+|#[0-9a-fA-F]{6})?(?:[ \t]+([A-Za-z0-9_.]+))?\]")
 
 
 @dataclass(slots=True)
 class _Tok:
-    kind: str  # "text", "star2", "star1", "open", "close"
+    kind: str  # "text", "star2", "star1", "open", "close", "pause"
     value: str
     style: str | None = None
     can_open: bool = False
     can_close: bool = False
+    seconds: float = 0.0
+
+
+def _opening_tag(name: str, arg: str | None) -> _Tok | None:
+    """The token for ``[name arg]``, or None if it isn't valid markup."""
+    lowered = name.lower()
+    if arg is None and is_style_name(name):
+        return _Tok("open", "", lowered)
+    if lowered == "pause":
+        seconds = pause_seconds(arg)
+        return None if seconds is None else _Tok("pause", "", seconds=seconds)
+    if lowered == "type":
+        effect = TYPE_SPEEDS.get(arg.lower() if arg else None)
+        return None if effect is None else _Tok("open", "", effect)
+    if lowered == "glitch" and arg is None:
+        return _Tok("open", "", "glitch")
+    return None
 
 
 def _tokenize_inline(text: str) -> list[_Tok]:
@@ -361,15 +405,21 @@ def _tokenize_inline(text: str) -> list[_Tok]:
         if c == "[":
             m = _TAG_RE.match(text, i)
             if m:
-                closing, name = m.group(1) == "/", m.group(2)
-                if closing and (name is None or is_style_name(name)):
+                closing, name, arg = m.group(1) == "/", m.group(2), m.group(3)
+                if (
+                    closing
+                    and arg is None
+                    and (name is None or is_style_name(name) or name.lower() in ("type", "glitch"))
+                ):
                     flush()
                     toks.append(_Tok("close", m.group(0), name.lower() if name else None))
                     i = m.end()
                     continue
-                if not closing and name and is_style_name(name):
+                tok = _opening_tag(name, arg) if not closing and name else None
+                if tok is not None:
                     flush()
-                    toks.append(_Tok("open", m.group(0), name.lower()))
+                    tok.value = m.group(0)
+                    toks.append(tok)
                     i = m.end()
                     continue
         buf.append(c)
@@ -396,6 +446,10 @@ def _pair_stars(toks: list[_Tok], kind: str) -> set[int]:
     return matched
 
 
+def _closes(entry: str, name: str) -> bool:
+    return entry == name or (name == "type" and entry.startswith("type"))
+
+
 def _style_page(text: str) -> Page:
     toks = _tokenize_inline(text)
     active = _pair_stars(toks, "star2") | _pair_stars(toks, "star1")
@@ -408,9 +462,14 @@ def _style_page(text: str) -> Page:
             return
         flags = set(stack)
         color = next(
-            (COLORS.get(name, name) for name in reversed(stack) if name not in TEXT_STYLES),
+            (
+                COLORS.get(name, name)
+                for name in reversed(stack)
+                if name not in TEXT_STYLES and name not in EFFECTS
+            ),
             None,
         )
+        effect = next((name for name in reversed(stack) if name in EFFECTS), None)
         span = StyledSpan(
             s,
             bold=bold or "bold" in flags,
@@ -418,10 +477,23 @@ def _style_page(text: str) -> Page:
             underline="underline" in flags,
             dim="dim" in flags,
             color=color,
+            effect=effect,
         )
-        if spans and spans[-1].rich_style() == span.rich_style():
+        last = spans[-1] if spans else None
+        if (
+            last is not None
+            and not last.pause
+            and last.rich_style() == span.rich_style()
+            and last.effect == span.effect
+        ):
             spans[-1] = StyledSpan(
-                spans[-1].text + s, span.bold, span.italic, span.underline, span.dim, span.color
+                last.text + s,
+                span.bold,
+                span.italic,
+                span.underline,
+                span.dim,
+                span.color,
+                span.effect,
             )
         else:
             spans.append(span)
@@ -437,6 +509,8 @@ def _style_page(text: str) -> Page:
                     italic = not italic
             else:
                 emit(tok.value)
+        elif tok.kind == "pause":
+            spans.append(StyledSpan("", pause=tok.seconds))
         elif tok.kind == "open":
             assert tok.style is not None
             stack.append(tok.style)
@@ -446,11 +520,13 @@ def _style_page(text: str) -> Page:
                     stack.pop()
                 else:
                     emit(tok.value)
-            elif tok.style in stack:
-                pos = len(stack) - 1 - stack[::-1].index(tok.style)
-                del stack[pos]
-            else:
+                continue
+            name = tok.style
+            pos = next((i for i in range(len(stack) - 1, -1, -1) if _closes(stack[i], name)), None)
+            if pos is None:
                 emit(tok.value)
+            else:
+                del stack[pos]
     return spans
 
 
@@ -462,10 +538,17 @@ def _tidy(text: str) -> str:
     return _BLANK_RUN_RE.sub("\n\n", text).strip("\n").rstrip()
 
 
+# A pause alone on its line shouldn't leave a blank line: it joins the next line
+# (or, at the very end, the previous one).
+_PAUSE_LINE_RE = re.compile(r"^[ \t]*(\[pause(?:[ \t]+[0-9.]+)?\])[ \t]*\n", re.M | re.I)
+_PAUSE_END_RE = re.compile(r"\n[ \t]*(\[pause(?:[ \t]+[0-9.]+)?\])[ \t]*\Z", re.I)
+
+
 def style(text: str) -> list[Page]:
     """Split resolved text into pages of styled spans. Empty pages are dropped."""
     pages = []
     for chunk in _PAGE_BREAK_RE.split(text):
+        chunk = _PAUSE_END_RE.sub(r"\1", _PAUSE_LINE_RE.sub(r"\1", chunk))
         tidy = _tidy(chunk)
         if tidy.strip():
             pages.append(_style_page(tidy))
@@ -491,8 +574,32 @@ def unknown_style_tags(text: str) -> list[tuple[str, int, int]]:
     return [
         (m.group(1), m.start(), m.end())
         for m in _STYLE_TAG_LIKE_RE.finditer(text)
-        if not is_style_name(m.group(1))
+        if not is_tag_name(m.group(1))
     ]
+
+
+_EFFECT_TAG_RE = re.compile(r"(?<!\\)\[(pause|type|glitch)(?:[ \t]+([^\]\n]*))?\]", re.I)
+
+
+def effect_tag_problems(text: str) -> list[tuple[str, int, int]]:
+    """Effect tags that won't work (they would show up as plain text)."""
+    problems = []
+    for m in _EFFECT_TAG_RE.finditer(text):
+        name, arg = m.group(1).lower(), m.group(2)
+        arg = arg.strip() if arg is not None else None
+        if name == "pause" and pause_seconds(arg) is None:
+            problems.append(
+                (
+                    f"[pause] needs a number of seconds up to {MAX_PAUSE:g}, e.g. [pause 2]",
+                    m.start(),
+                    m.end(),
+                )
+            )
+        elif name == "type" and (arg.lower() if arg else None) not in TYPE_SPEEDS:
+            problems.append(("use [type], [type slow] or [type fast]", m.start(), m.end()))
+        elif name == "glitch" and arg:
+            problems.append(("[glitch] doesn't take a setting", m.start(), m.end()))
+    return problems
 
 
 def rename_in_markup(text: str, kind: RefKind, old: str, new: str) -> str:

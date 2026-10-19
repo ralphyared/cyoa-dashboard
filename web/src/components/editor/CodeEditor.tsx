@@ -88,10 +88,18 @@ function completionSource(data: { current: CompletionData }, mode: CheckMode) {
           const colors = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray',
             'orange', 'purple', 'gold', 'pink', 'bright_red', 'bright_green', 'bright_yellow',
             'bright_blue', 'bright_magenta', 'bright_cyan', 'bold', 'italic', 'underline', 'dim']
+          const effects: Completion[] = before.endsWith('[/')
+            ? [{ label: 'type', type: 'function' }, { label: 'glitch', type: 'function' }]
+            : [
+                { label: 'pause 2', detail: 'wait 2 seconds', type: 'function' },
+                { label: 'type slow', detail: 'type out slowly…[/type]', type: 'function' },
+                { label: 'type', detail: 'type out…[/type]', type: 'function' },
+                { label: 'glitch', detail: 'glitch in…[/glitch]', type: 'function' },
+              ]
           return {
             from: ctx.pos - style[1].length,
-            options: colors.map((c) => ({ label: c, type: 'keyword' })),
-            validFor: /^\w*$/,
+            options: [...effects, ...colors.map((c) => ({ label: c, type: 'keyword' }))],
+            validFor: /^[\w ]*$/,
           }
         }
         return null

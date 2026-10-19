@@ -24,7 +24,7 @@ import time
 import urllib.request
 import zipfile
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -36,6 +36,7 @@ log = logging.getLogger(__name__)
 
 TAG_PREFIX = "player-v"
 USER_AGENT = "cyoa-dashboard"
+RECHECK_AFTER = timedelta(hours=6)
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,8 +161,22 @@ class PlayerStore:
                     shutil.rmtree(old, ignore_errors=True)
             return self.status()
 
+    def _stale(self) -> bool:
+        checked = (self.current() or {}).get("checked_at")
+        if not isinstance(checked, str):
+            return True
+        try:
+            return datetime.now(UTC) - datetime.fromisoformat(checked) > RECHECK_AFTER
+        except ValueError:
+            return True
+
     def ensure(self, platform: str) -> Path:
-        """The player for ``platform``, fetching releases once if we have none yet."""
+        """The player for ``platform``: fetched on first use, refreshed every few hours."""
+        if self.current() is not None and self._stale():
+            try:
+                self.update()
+            except Exception as e:  # keep using the builds we have
+                log.warning("couldn't check for a newer player: %s", e)
         path = self.path(platform)
         if path is None and self.current() is None:
             try:

@@ -291,7 +291,7 @@ class Runtime:
     def render_line(self, state: GameState, src: str, where: str) -> list[StyledSpan]:
         """Render markup that must fit on one line (choice text, status bar)."""
         pages = self.render_text(state, src, where)
-        spans = [s for page in pages for s in page]
+        spans = [s for page in pages for s in page if not s.pause]
         return [
             StyledSpan(s.text.replace("\n", " "), s.bold, s.italic, s.underline, s.dim, s.color)
             for s in spans

@@ -25,6 +25,7 @@ const tokenTable = {
   style: t.tagName,
   hr: t.contentSeparator,
   esc: t.escape,
+  fx: t.special(t.tagName),
 }
 
 function exprToken(stream: StringStream, inTag: boolean): string | null {
@@ -117,6 +118,7 @@ export const markupLanguage = StreamLanguage.define<MarkupState>({
       state.italic = !state.italic
       return 'mark'
     }
+    if (stream.match(/^\[\/?(pause|type|glitch)\b[^\]\n]*\]/i)) return 'fx'
     if (stream.match(/^\[\/?([A-Za-z_]+|#[0-9a-fA-F]{6})?\]/)) return 'style'
     if (stream.eatWhile(/[^{\\*[]/)) return textStyle(state)
     stream.next()
@@ -143,6 +145,7 @@ export const highlightStyle = HighlightStyle.define([
   { tag: t.emphasis, fontStyle: 'italic' },
   { tag: t.processingInstruction, color: '#71717a' },
   { tag: t.tagName, color: '#f9a8d4' },
+  { tag: t.special(t.tagName), color: '#fbbf24', fontWeight: '600' },
   { tag: t.contentSeparator, color: '#a78bfa', fontWeight: '700' },
   { tag: t.escape, color: '#71717a' },
 ])

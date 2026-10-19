@@ -37,6 +37,7 @@ class Options:
     typewriter: bool | None = None  # None: use the game's default
     speed: str = "normal"
     width: int | None = None
+    effects: bool = True  # pauses, glitches and [type] passages
 
 
 class OptionsStore:
@@ -56,6 +57,7 @@ class OptionsStore:
                 typewriter=data.get("typewriter"),
                 speed=data.get("speed", "normal"),
                 width=data.get("width"),
+                effects=bool(data.get("effects", True)),
             )
         except (OSError, ValueError, AttributeError):
             return Options()

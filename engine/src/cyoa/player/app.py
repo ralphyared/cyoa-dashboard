@@ -17,21 +17,15 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from ..markup import Page, StyledSpan
+from ..markup import Page
 from ..model import EndingKind, Game
 from ..runtime import ChoiceView, GameError, GameState, Runtime, SceneView
+from .effects import LinePlayer, strip_markers, to_text
 from .storage import AUTO, SLOTS, SPEEDS, WIDTHS, Options, OptionsStore, SaveStore
 from .terminal import Terminal
 
 StateSink = Callable[[dict[str, Any]], None]
 MARGIN = "  "
-
-
-def to_text(spans: list[StyledSpan]) -> Text:
-    text = Text()
-    for span in spans:
-        text.append(span.text, style=span.rich_style() or None)
-    return text
 
 
 def art_block(art: str, style: str = "") -> Align:
@@ -107,29 +101,22 @@ class Player:
         return self.options.typewriter
 
     def write_text(self, text: Text, *, animate: bool) -> None:
-        """Print wrapped body text, optionally with the typewriter effect."""
+        """Print wrapped body text; when ``animate``, play typewriter and text effects."""
         lines = text.wrap(self.term.console, self.width - len(MARGIN))
-        if not (animate and self.typewriter_on):
+        effects = animate and self.term.interactive and self.options.effects
+        speed = SPEEDS.get(self.options.speed, SPEEDS["normal"])
+        base_delay = 1.0 / speed if animate and self.typewriter_on else 0.0
+        if not effects and not base_delay:
             for line in lines:
-                self.term.print(Text(MARGIN) + line, width=self.width, soft_wrap=True)
+                line = Text(MARGIN) + strip_markers(line)
+                self.term.print(line, width=self.width, soft_wrap=True)
             return
-        delay = 1.0 / SPEEDS.get(self.options.speed, SPEEDS["normal"])
-        skipping = False
+        player = LinePlayer(self.term, base_delay=base_delay, effects=effects, type_cps=speed)
         for line in lines:
             self.term.print(MARGIN, end="", soft_wrap=True)
-            if skipping:
-                self.term.print(line, soft_wrap=True)
-                continue
-            for i in range(len(line)):
-                self.term.print(line[i : i + 1], end="", soft_wrap=True)
-                if line.plain[i] != " ":
-                    self.term.sleep(delay)
-                if self.term.key_pressed():
-                    skipping = True
-                    self.term.print(line[i + 1 :], end="", soft_wrap=True)
-                    break
+            player.play(line)
             self.term.print(soft_wrap=True)
-        if skipping:
+        if player.skipping:
             self.term.drain_input()
 
     # -- entry point -------------------------------------------------------------------
@@ -558,6 +545,7 @@ class Player:
             )
             rows = [
                 ("Typewriter effect", "on" if typewriter else "off"),
+                ("Text effects", "on" if opts.effects else "off"),
                 ("Typewriter speed", opts.speed),
                 (
                     "Text width",
@@ -576,15 +564,17 @@ class Player:
                     )
                 )
             self.out()
-            answer = self.ask("Change which (1-3), or Enter to go back: ")
+            answer = self.ask("Change which (1-4), or Enter to go back: ")
             if not answer:
                 return
             if answer == "1":
                 opts.typewriter = not typewriter
             elif answer == "2":
+                opts.effects = not opts.effects
+            elif answer == "3":
                 names = list(SPEEDS)
                 opts.speed = names[(names.index(opts.speed) + 1) % len(names)]
-            elif answer == "3":
+            elif answer == "4":
                 opts.width = WIDTHS[(WIDTHS.index(opts.width) + 1) % len(WIDTHS)]
             else:
                 continue

@@ -82,6 +82,11 @@ Number variables are clamped to their `min`/`max` after every change.
 - `**bold**`, `*italic*`, `[red]…[/red]` (or `[/]`), `[bold]`, `[italic]`,
   `[underline]`, `[dim]`, `[#rrggbb]`. Unknown `[words]` are plain text.
 - A line containing only `---` is a page break ("press Enter to continue").
+- Timing effects: `[pause N]` waits N seconds (default 1, at most 30; alone on a
+  line it leaves no blank line), `[type]…[/type]` types text out letter by letter
+  (`[type slow]`, `[type fast]`), `[glitch]…[/glitch]` flickers text in as random
+  symbols. They play the first time a page is shown; any key skips them, and
+  players can switch them off in Options.
 - `\` shows the next character literally (`\{`, `\*`, `\[`).
 
 ## Turn order

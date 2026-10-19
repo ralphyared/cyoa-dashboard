@@ -152,3 +152,30 @@ def test_content_disposition_handles_unicode():
     header = content_disposition("Ünïcödé Tale.exe")
     assert 'filename="_n_c_d_ Tale.exe"' in header
     assert "filename*=UTF-8''%C3%9Cn%C3%AFc%C3%B6d%C3%A9%20Tale.exe" in header
+
+
+def test_stale_players_are_refreshed(client, game, fake_github, monkeypatch):
+    download(client, game["id"], "windows")
+    first = fake_github["downloads"]
+    store = client.app.state.players
+    current = json.loads((store.root / "current.json").read_text())
+    current["checked_at"] = "2020-01-01T00:00:00+00:00"
+    (store.root / "current.json").write_text(json.dumps(current))
+    download(client, game["id"], "windows")
+    new_check = json.loads((store.root / "current.json").read_text())["checked_at"]
+    assert new_check != "2020-01-01T00:00:00+00:00"
+    assert fake_github["downloads"] == first  # same release: nothing re-downloaded
+
+
+def test_refresh_failure_keeps_existing_players(client, game, fake_github, monkeypatch):
+    download(client, game["id"], "linux")
+    store = client.app.state.players
+    current = json.loads((store.root / "current.json").read_text())
+    current["checked_at"] = "2020-01-01T00:00:00+00:00"
+    (store.root / "current.json").write_text(json.dumps(current))
+
+    def offline(url, timeout=20):
+        raise OSError("offline")
+
+    monkeypatch.setattr(players_module, "_get_json", offline)
+    assert download(client, game["id"], "linux").status_code == 200

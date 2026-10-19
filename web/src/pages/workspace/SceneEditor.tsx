@@ -24,6 +24,7 @@ import {
   Play,
   Plus,
   ScissorsLineDashed,
+  Sparkles,
   Star,
   Trash2,
   Variable as VariableIcon,
@@ -350,6 +351,23 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
             <ToolbarButton label="Page break (player presses Enter to continue)" onClick={() => insert('\n---\n')}>
               <ScissorsLineDashed className="size-3.5" />
             </ToolbarButton>
+            <Menu>
+              <Tip content="Timing & effects">
+                <MenuTrigger asChild>
+                  <Button size="xs" variant="ghost" icon={<Sparkles className="size-3.5" />} aria-label="Timing and effects" />
+                </MenuTrigger>
+              </Tip>
+              <MenuContent align="start">
+                <MenuItem onSelect={() => insert('[pause 1]')}>Pause 1 second</MenuItem>
+                <MenuItem onSelect={() => insert('[pause 2]')}>Pause 2 seconds</MenuItem>
+                <MenuItem onSelect={() => insert('[pause 3]')}>Pause 3 seconds</MenuItem>
+                <MenuItem onSelect={() => wrap('[type slow]', '[/type]', 'text that types out slowly')}>
+                  Type out slowly
+                </MenuItem>
+                <MenuItem onSelect={() => wrap('[type]', '[/type]', 'text that types out')}>Type out</MenuItem>
+                <MenuItem onSelect={() => wrap('[glitch]', '[/glitch]', 'glitching text')}>Glitch</MenuItem>
+              </MenuContent>
+            </Menu>
             <span className="ml-auto text-xs text-zinc-500">{words.toLocaleString()} words</span>
           </div>
           <CodeEditor

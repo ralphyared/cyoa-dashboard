@@ -352,6 +352,8 @@ def validate(game: Game) -> list[Issue]:
                 code = "unknown_reference" if err.message.startswith("unknown ") else "type"
                 add(loc.issue(E, code, err.message, err.start + offset, err.end + offset))
         if source.mode == "markup":
+            for message, start, end in markup.effect_tag_problems(source.text):
+                add(loc.issue(W, "invalid_effect", message, start, end))
             for name, start, end in markup.unknown_style_tags(source.text):
                 add(
                     loc.issue(
