@@ -13,10 +13,12 @@ from typing import Any
 
 from platformdirs import user_config_dir, user_data_dir
 
+from ..typing_speed import TYPING_CPS
+
 APP_NAME = "cyoa"
 SLOTS = ("1", "2", "3", "4", "5")
 AUTO = "auto"
-SPEEDS = {"slow": 35.0, "normal": 80.0, "fast": 200.0}  # characters per second
+OLD_SPEED_NAMES = {"slow": 4, "normal": None, "fast": 8}  # options saved by player 1.0/1.1
 WIDTHS = (None, 60, 70, 80, 100, 120)  # None: use the game's setting
 
 
@@ -35,9 +37,17 @@ def _atomic_write(path: Path, data: dict[str, Any]) -> None:
 @dataclass(slots=True)
 class Options:
     typewriter: bool | None = None  # None: use the game's default
-    speed: str = "normal"
+    speed: int | None = None  # typing speed level 1-9; None: the game's setting
     width: int | None = None
     effects: bool = True  # pauses, glitches and [type] passages
+
+
+def _speed(value: Any) -> int | None:
+    if isinstance(value, str):
+        return OLD_SPEED_NAMES.get(value)
+    if isinstance(value, int) and not isinstance(value, bool) and value in TYPING_CPS:
+        return value
+    return None
 
 
 class OptionsStore:
@@ -55,14 +65,12 @@ class OptionsStore:
             data = json.loads(self.path.read_text(encoding="utf-8"))
             options = Options(
                 typewriter=data.get("typewriter"),
-                speed=data.get("speed", "normal"),
+                speed=_speed(data.get("speed")),
                 width=data.get("width"),
                 effects=bool(data.get("effects", True)),
             )
         except (OSError, ValueError, AttributeError):
             return Options()
-        if options.speed not in SPEEDS:
-            options.speed = "normal"
         if options.width not in WIDTHS:
             options.width = None
         return options

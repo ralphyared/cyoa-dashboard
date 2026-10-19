@@ -26,6 +26,7 @@ from .expr import (
 )
 from .expr.nodes import Value
 from .expr.rename import apply_renames, reference_spans
+from .typing_speed import TYPING_CPS
 
 # -- stage 1: template ---------------------------------------------------------
 
@@ -284,7 +285,13 @@ _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 # Timing effects. [pause N] waits; [type]/[type slow]/[type fast] and [glitch] wrap text.
 EFFECT_TAGS = frozenset({"pause", "type", "glitch"})
-TYPE_SPEEDS = {None: "type", "slow": "type_slow", "fast": "type_fast"}
+# [type] uses the game's typing speed; [type N] a speed level 1-9 (see typing_speed.py).
+TYPE_SPEEDS: dict[str | None, str] = {
+    None: "type",
+    "slow": "type_2",
+    "fast": "type_8",
+    **{str(level): f"type_{level}" for level in TYPING_CPS},
+}
 EFFECTS = frozenset({"glitch", *TYPE_SPEEDS.values()})
 MAX_PAUSE = 30.0
 
@@ -317,7 +324,7 @@ class StyledSpan:
     underline: bool = False
     dim: bool = False
     color: str | None = None  # a rich color name or #rrggbb
-    effect: str | None = None  # "glitch", "type", "type_slow", "type_fast"
+    effect: str | None = None  # "glitch", "type" (game speed) or "type_1" … "type_9"
     pause: float = 0.0  # > 0: a pause marker (its text is empty)
 
     def rich_style(self) -> str:
@@ -596,7 +603,13 @@ def effect_tag_problems(text: str) -> list[tuple[str, int, int]]:
                 )
             )
         elif name == "type" and (arg.lower() if arg else None) not in TYPE_SPEEDS:
-            problems.append(("use [type], [type slow] or [type fast]", m.start(), m.end()))
+            problems.append(
+                (
+                    "use [type] for the game's speed, or [type 1] (slowest) to [type 9] (fastest)",
+                    m.start(),
+                    m.end(),
+                )
+            )
         elif name == "glitch" and arg:
             problems.append(("[glitch] doesn't take a setting", m.start(), m.end()))
     return problems

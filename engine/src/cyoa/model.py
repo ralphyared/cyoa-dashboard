@@ -16,6 +16,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from .expr import Type
+from .typing_speed import DEFAULT_TYPING_SPEED, FASTEST, SLOWEST
 
 FORMAT_VERSION = 1
 
@@ -115,6 +116,7 @@ class Settings(_Model):
     show_scene_titles: bool = False
     text_width: int = Field(default=80, ge=40, le=200)
     typewriter: bool = False
+    typing_speed: int = Field(default=DEFAULT_TYPING_SPEED, ge=SLOWEST, le=FASTEST)
 
 
 class Game(_Model):

@@ -207,7 +207,7 @@ def test_effect_spans():
     assert shown == [
         ("drip", "glitch", 0.0),
         (" ", None, 0.0),
-        ("slow", "type_slow", 0.0),
+        ("slow", "type_2", 0.0),
         (" ", None, 0.0),
         ("norm", "type", 0.0),
         (" ", None, 0.0),
@@ -232,7 +232,16 @@ def test_pause_alone_on_a_line_leaves_no_blank_line():
 
 
 @pytest.mark.parametrize(
-    "text", ["[pause soon]", "[pause 0]", "[pause 99]", "[type sideways]x", "[glitch 3]x"]
+    "text",
+    [
+        "[pause soon]",
+        "[pause 0]",
+        "[pause 99]",
+        "[type sideways]x",
+        "[type 10]x",
+        "[type 0]x",
+        "[glitch 3]x",
+    ],
 )
 def test_invalid_effect_tags_are_plain_text(text):
     [page] = style(text)
@@ -244,7 +253,7 @@ def test_effect_tag_problems():
     problems = effect_tag_problems("[pause soon] [pause 2] [type sideways] [glitch x] [type fast]")
     assert [p[0].split(",")[0] for p in problems] == [
         "[pause] needs a number of seconds up to 30",
-        "use [type]",
+        "use [type] for the game's speed",
         "[glitch] doesn't take a setting",
     ]
 
@@ -256,3 +265,8 @@ def test_escaped_effect_tags_stay_literal():
 
 def test_effect_closing_tags_are_known():
     assert unknown_style_tags("[type]a[/type] [glitch]b[/glitch]") == []
+
+
+def test_type_speed_levels():
+    [page] = style("[type 1]a[/type][type 9]b[/type][type fast]c[/type]")
+    assert [(s.text, s.effect) for s in page] == [("a", "type_1"), ("b", "type_9"), ("c", "type_8")]

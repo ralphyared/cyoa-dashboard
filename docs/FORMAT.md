@@ -19,7 +19,8 @@ The same format with author-only fields included is the *project backup*.
     "status_format": "HP {hp}/{max_hp} │ Gold {gold}",   // markup; "" = no status bar
     "show_scene_titles": false,
     "text_width": 80,
-    "typewriter": false
+    "typewriter": false,             // type out all scene text by default
+    "typing_speed": 6                // 1 (slowest) … 9 (fastest); also used by [type]
   },
   "variables": [
     { "name": "hp", "type": "number", "initial": 10, "min": 0, "max": "max_hp", "label": "HP" }
@@ -83,8 +84,9 @@ Number variables are clamped to their `min`/`max` after every change.
   `[underline]`, `[dim]`, `[#rrggbb]`. Unknown `[words]` are plain text.
 - A line containing only `---` is a page break ("press Enter to continue").
 - Timing effects: `[pause N]` waits N seconds (default 1, at most 30; alone on a
-  line it leaves no blank line), `[type]…[/type]` types text out letter by letter
-  (`[type slow]`, `[type fast]`), `[glitch]…[/glitch]` flickers text in as random
+  line it leaves no blank line), `[type]…[/type]` types text out letter by letter at
+  the game's typing speed, `[type 1]` … `[type 9]` at a given speed (1 slowest; `slow`
+  = 2, `fast` = 8), `[glitch]…[/glitch]` flickers text in as random
   symbols. They play the first time a page is shown; any key skips them, and
   players can switch them off in Options.
 - `\` shows the next character literally (`\{`, `\*`, `\[`).

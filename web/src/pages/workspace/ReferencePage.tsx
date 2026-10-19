@@ -60,8 +60,11 @@ You remember the way from last time.
         <Block>{`[glitch]drip drip drip[/glitch]          ← flickers in as scrambled symbols, then settles
 [pause 2]                                 ← waits 2 seconds (alone on a line: no blank line)
 You wake to the sound of water droplets…
-[type slow]Your memory is blurry…[/type]  ← types out letter by letter (also [type], [type fast])`}</Block>
+[type 2]Your memory is blurry…[/type]     ← types out letter by letter at speed 2`}</Block>
         <p>
+          Typing speeds go from <Code>[type 1]</Code> (slowest) to <Code>[type 9]</Code> (fastest);
+          plain <Code>[type]</Code> uses the game's typing speed from Settings, where you can also
+          make all text type out. <Code>[type slow]</Code> and <Code>[type fast]</Code> mean 2 and 8.
           <Code>[pause]</Code> on its own waits 1 second; up to 30 seconds is allowed. Effects mix
           with colors and bold, e.g. <Code>[red][glitch]RUN[/glitch][/red]</Code>. The ✦ button
           above the scene text inserts them for you.

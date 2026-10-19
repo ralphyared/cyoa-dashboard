@@ -61,6 +61,7 @@ export interface Settings {
   show_scene_titles: boolean
   text_width: number
   typewriter: boolean
+  typing_speed: number
 }
 
 export interface Meta {

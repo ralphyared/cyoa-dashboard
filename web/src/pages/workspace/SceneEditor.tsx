@@ -361,10 +361,18 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
                 <MenuItem onSelect={() => insert('[pause 1]')}>Pause 1 second</MenuItem>
                 <MenuItem onSelect={() => insert('[pause 2]')}>Pause 2 seconds</MenuItem>
                 <MenuItem onSelect={() => insert('[pause 3]')}>Pause 3 seconds</MenuItem>
-                <MenuItem onSelect={() => wrap('[type slow]', '[/type]', 'text that types out slowly')}>
-                  Type out slowly
+                <MenuItem onSelect={() => wrap('[type]', '[/type]', 'text that types out')}>
+                  Type out (game speed)
                 </MenuItem>
-                <MenuItem onSelect={() => wrap('[type]', '[/type]', 'text that types out')}>Type out</MenuItem>
+                <MenuItem onSelect={() => wrap('[type 1]', '[/type]', 'text that types out')}>
+                  Type out very slowly (1)
+                </MenuItem>
+                <MenuItem onSelect={() => wrap('[type 3]', '[/type]', 'text that types out')}>
+                  Type out slowly (3)
+                </MenuItem>
+                <MenuItem onSelect={() => wrap('[type 8]', '[/type]', 'text that types out')}>
+                  Type out quickly (8)
+                </MenuItem>
                 <MenuItem onSelect={() => wrap('[glitch]', '[/glitch]', 'glitching text')}>Glitch</MenuItem>
               </MenuContent>
             </Menu>

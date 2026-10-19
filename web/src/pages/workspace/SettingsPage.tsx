@@ -8,6 +8,7 @@ import { Button, Checkbox, Field, Input, Select, Textarea, cx } from '@/componen
 import { api } from '@/lib/api'
 import { useGameActions, useMeta } from '@/lib/queries'
 import type { Settings } from '@/lib/types'
+import { TYPING_SPEEDS } from '@/lib/typing'
 import { useWorkspace } from './context'
 import { ConfirmDelete, PageShell } from './shared'
 
@@ -118,11 +119,20 @@ export function SettingsPage() {
               ))}
             </Select>
           </Field>
-          <div className="flex flex-col justify-center gap-2">
+          <Field label="Typing speed" hint="For the typewriter effect and [type] passages. Players can pick their own.">
+            <Select value={settings.typing_speed ?? 6} onChange={(e) => setSettings({ typing_speed: Number(e.target.value) })}>
+              {TYPING_SPEEDS.map((s) => (
+                <option key={s.level} value={s.level}>
+                  {s.level} · {s.name} ({s.cps} letters a second)
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <div className="flex flex-col justify-center gap-2 sm:col-span-2">
             <Checkbox
               checked={settings.typewriter}
               onChange={(typewriter) => setSettings({ typewriter })}
-              label="Typewriter effect by default (players can change it)"
+              label="Type out all text (typewriter effect) by default (players can change it)"
             />
             <Checkbox
               checked={settings.show_scene_titles}

@@ -21,6 +21,7 @@ import {
 import { cx as clsx } from '../ui'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { useGame } from '@/lib/queries'
+import { TYPING_SPEEDS } from '@/lib/typing'
 import { useCheck } from '@/lib/useCheck'
 import type { CheckMode, CheckResult, GameDetail } from '@/lib/types'
 import { expressionLanguage, highlightStyle, markupLanguage } from './languages'
@@ -92,8 +93,13 @@ function completionSource(data: { current: CompletionData }, mode: CheckMode) {
             ? [{ label: 'type', type: 'function' }, { label: 'glitch', type: 'function' }]
             : [
                 { label: 'pause 2', detail: 'wait 2 seconds', type: 'function' },
-                { label: 'type slow', detail: 'type out slowly…[/type]', type: 'function' },
-                { label: 'type', detail: 'type out…[/type]', type: 'function' },
+                { label: 'type', detail: 'type out at the game speed…[/type]', type: 'function' },
+                ...TYPING_SPEEDS.map((s) => ({
+                  label: `type ${s.level}`,
+                  detail: `type out ${s.name}…[/type]`,
+                  type: 'function',
+                  boost: -1,
+                })),
                 { label: 'glitch', detail: 'glitch in…[/glitch]', type: 'function' },
               ]
           return {

@@ -89,3 +89,20 @@ def test_strip_markers():
     text = to_text(page)
     assert MARKER in text.plain
     assert strip_markers(text).plain == "a b"
+
+
+def test_numbered_type_speeds():
+    slowest, fastest = ClockTerminal(), ClockTerminal()
+    play("[type 1]abcd[/type]", slowest)
+    play("[type 9]abcd[/type]", fastest)
+    assert round(slowest.slept, 3) == round(4 / 10, 3)
+    assert round(fastest.slept, 4) == round(4 / 350, 4)
+
+
+def test_plain_type_uses_the_given_speed():
+    term = ClockTerminal()
+    [page] = style("[type]abcd[/type]")
+    player = LinePlayer(term, base_delay=0.0, effects=True, type_cps=10, rng=random.Random(1))
+    for line in to_text(page).wrap(term.console, 70):
+        player.play(line)
+    assert round(term.slept, 3) == 0.4

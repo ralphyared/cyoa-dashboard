@@ -130,9 +130,41 @@ def test_overwrite_requires_confirmation(tmp_path):
 
 
 def test_options_persist(tmp_path):
-    run(["2", "1", "2", "3", "4", "", "3"], tmp_path)
+    run(["2", "1", "2", "3", "8", "4", "", "3"], tmp_path)
     options = OptionsStore(tmp_path / "options.json").load()
-    assert options == Options(typewriter=True, speed="fast", width=60, effects=False)
+    assert options == Options(typewriter=True, speed=8, width=60, effects=False)
+
+
+def test_typing_speed_option_back_to_game_default(tmp_path):
+    store = OptionsStore(tmp_path / "options.json")
+    store.save(Options(speed=3))
+    term, _ = run(["2", "3", "", "", "3"], tmp_path)
+    assert "3 · unhurried" in term.output
+    assert "game default (6 · normal)" in term.output
+    assert store.load().speed is None
+
+
+def test_old_speed_names_are_migrated(tmp_path):
+    path = tmp_path / "options.json"
+    for old, new in (
+        ("slow", 4),
+        ("normal", None),
+        ("fast", 8),
+        ("weird", None),
+        (12, None),
+        (5, 5),
+    ):
+        path.write_text(json.dumps({"speed": old}))
+        assert OptionsStore(path).load().speed == new
+
+
+def test_typing_speed_comes_from_the_game_unless_the_player_chose(tmp_path):
+    game = make_game()
+    game.settings.typing_speed = 2
+    _, player = run(["3"], tmp_path, game=game)
+    assert player.typing_speed == 2
+    player.options.speed = 7
+    assert player.typing_speed == 7
 
 
 def test_intro_and_multi_page_scene(tmp_path):

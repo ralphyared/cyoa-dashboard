@@ -15,6 +15,7 @@ from rich.style import Style
 from rich.text import Text
 
 from ..markup import StyledSpan
+from ..typing_speed import TYPING_CPS
 from .terminal import Terminal
 
 MARKER = "​"  # zero-width; holds a pause
@@ -22,8 +23,6 @@ GLYPHS = "!#$%&*+/<=>?@\\^|~0123456789"
 GLITCH_COLORS = ("red", "magenta", "cyan", "bright_white", "green")
 GLITCH_FRAMES = 14
 GLITCH_FRAME_SECONDS = 0.045
-SLOW_CPS = 18.0
-FAST_CPS = 200.0
 
 
 def to_text(spans: list[StyledSpan]) -> Text:
@@ -66,8 +65,7 @@ class LinePlayer:
         self.effects = effects
         self.type_delays = {
             "type": 1.0 / type_cps,
-            "type_slow": 1.0 / SLOW_CPS,
-            "type_fast": 1.0 / FAST_CPS,
+            **{f"type_{level}": 1.0 / cps for level, cps in TYPING_CPS.items()},
         }
         self.rng = rng or random.Random()
         self.skipping = False

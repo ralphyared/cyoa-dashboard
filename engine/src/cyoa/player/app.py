@@ -20,8 +20,9 @@ from rich.text import Text
 from ..markup import Page
 from ..model import EndingKind, Game
 from ..runtime import ChoiceView, GameError, GameState, Runtime, SceneView
+from ..typing_speed import FASTEST, SLOWEST, TYPING_CPS, describe
 from .effects import LinePlayer, strip_markers, to_text
-from .storage import AUTO, SLOTS, SPEEDS, WIDTHS, Options, OptionsStore, SaveStore
+from .storage import AUTO, SLOTS, WIDTHS, Options, OptionsStore, SaveStore
 from .terminal import Terminal
 
 StateSink = Callable[[dict[str, Any]], None]
@@ -100,11 +101,17 @@ class Player:
             return self.game.settings.typewriter
         return self.options.typewriter
 
+    @property
+    def typing_speed(self) -> int:
+        """The speed level for typed text: the player's choice, else the game's."""
+        level = self.options.speed or self.game.settings.typing_speed
+        return level if level in TYPING_CPS else 6
+
     def write_text(self, text: Text, *, animate: bool) -> None:
         """Print wrapped body text; when ``animate``, play typewriter and text effects."""
         lines = text.wrap(self.term.console, self.width - len(MARGIN))
         effects = animate and self.term.interactive and self.options.effects
-        speed = SPEEDS.get(self.options.speed, SPEEDS["normal"])
+        speed = TYPING_CPS[self.typing_speed]
         base_delay = 1.0 / speed if animate and self.typewriter_on else 0.0
         if not effects and not base_delay:
             for line in lines:
@@ -546,7 +553,12 @@ class Player:
             rows = [
                 ("Typewriter effect", "on" if typewriter else "off"),
                 ("Text effects", "on" if opts.effects else "off"),
-                ("Typewriter speed", opts.speed),
+                (
+                    "Typing speed",
+                    describe(opts.speed)
+                    if opts.speed
+                    else f"game default ({describe(self.game.settings.typing_speed)})",
+                ),
                 (
                     "Text width",
                     f"{opts.width} columns"
@@ -572,8 +584,16 @@ class Player:
             elif answer == "2":
                 opts.effects = not opts.effects
             elif answer == "3":
-                names = list(SPEEDS)
-                opts.speed = names[(names.index(opts.speed) + 1) % len(names)]
+                level = self.ask(
+                    f"Typing speed {SLOWEST} (slowest) to {FASTEST} (fastest), "
+                    "or Enter for the game's default: "
+                )
+                if not level:
+                    opts.speed = None
+                elif level.isdigit() and int(level) in TYPING_CPS:
+                    opts.speed = int(level)
+                else:
+                    continue
             elif answer == "4":
                 opts.width = WIDTHS[(WIDTHS.index(opts.width) + 1) % len(WIDTHS)]
             else:
