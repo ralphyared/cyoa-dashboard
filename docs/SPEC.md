@@ -1,4 +1,4 @@
-# CYOA Dashboard — Spec (draft for approval)
+# CYOA Dashboard — Spec (approved 2026-10-18; kept up to date)
 
 A web dashboard for writing choose-your-own-adventure games (in the style of
 Wizard's Choice / Magium) that are played in the terminal with a Warsim-like look:
@@ -238,7 +238,22 @@ hand extended, palm up.
 6. **Player distribution:** standalone player executables, so players don't
    need Python.
 
-## Not in v1 (easy to add later if wanted)
+All six milestones are done and deployed (2026-10-18).
+
+## Added since v1 (requested by the author)
+
+| Date | Feature | Notes |
+|---|---|---|
+| 2026-10-18 | Ready-to-play exports | Export → one Windows `.exe` / Linux program with the story attached, or a macOS zip (player + game file). Player builds come from `player-v*` GitHub releases. Repo made public for this. |
+| 2026-10-19 | Mobile-friendly dashboard | Phones: scene drawer, ⋯ menu, full-screen panels and graph editor, stacked cards, playtest tap bar. Goal: everything works on a phone; long writing on tablet/computer. |
+| 2026-10-19 | Timing & text effects | `[pause N]`, `[type]…[/type]`, `[glitch]…[/glitch]`; play on first draw, Enter skips, players can turn them off. |
+| 2026-10-19 | Typing speed levels | 1 (slowest) – 9 (fastest); game-wide default in Settings (with "type out all text"); `[type N]` per passage; players can override. |
+| 2026-10-19 | Changes in scene text | `{x = 1}`, `{hp -= 2}`, `{give("rope")}` anywhere in scene text, including inside `{if}`; applied once when the scene is read on arrival; the text as read is kept for redraws and saves. |
+
+Decided against: conditional lines inside effect lists (`if …: x = 1`). Changes in
+scene text cover the same need in the way the author writes.
+
+## Still open (ideas, not started)
 
 Dice/random checks, stat-point allocation (Magium-style), achievements, usable
 items from the inventory screen, undo-last-choice, multiple authors.
