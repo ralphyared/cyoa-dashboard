@@ -13,6 +13,9 @@ import {
   Layers,
   ListTree,
   Loader2,
+  Menu as MenuIcon,
+  MoreHorizontal,
+  Search,
   Package,
   Play,
   Settings,
@@ -29,7 +32,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
-import { Link, Navigate, NavLink, Outlet, useNavigate, useParams } from 'react-router'
+import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router'
 import {
   Badge,
   Button,
@@ -39,6 +42,7 @@ import {
   Menu,
   MenuContent,
   MenuItem,
+  MenuSeparator,
   MenuTrigger,
   Spinner,
   Tip,
@@ -46,6 +50,7 @@ import {
 } from '@/components/ui'
 import { api, ApiError } from '@/lib/api'
 import { downloadFile } from '@/lib/format'
+import { useIsPhone, useMediaQuery } from '@/lib/media'
 import {
   SaveContext,
   useGame,
@@ -73,6 +78,14 @@ export function Workspace() {
   const [playtestOpened, setPlaytestOpened] = useState(false)
   const [playtestRequest, setPlaytestRequest] = useState<PlaytestRequest | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [navOpen, setNavOpen] = useState(false)
+  const isPhone = useIsPhone()
+  // Below laptop width a side panel would squeeze the editor, so panels cover the screen.
+  const panelFullScreen = !useMediaQuery('(min-width: 1024px)')
+  const location = useLocation()
+
+  // The scene drawer (phones) closes once the author picks something.
+  useEffect(() => setNavOpen(false), [location.pathname])
 
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -146,15 +159,32 @@ export function Workspace() {
     <SaveContext.Provider value={saver}>
       <WorkspaceContext.Provider value={context}>
         <div className="flex h-full flex-col">
-          <TopBar />
+          <TopBar onOpenNav={() => setNavOpen(true)} />
           <div className="flex min-h-0 flex-1">
-            <Sidebar />
+            {isPhone ? (
+              navOpen && (
+                <div className="fixed inset-0 z-40 flex" role="dialog" aria-label="Scenes">
+                  <div className="flex h-full w-[85vw] max-w-80 shadow-2xl">
+                    <Sidebar drawer onClose={() => setNavOpen(false)} />
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Close scenes"
+                    className="flex-1 bg-black/60"
+                    onClick={() => setNavOpen(false)}
+                  />
+                </div>
+              )
+            ) : (
+              <Sidebar />
+            )}
             <main className="min-w-0 flex-1 overflow-hidden">
               <Outlet />
             </main>
             <RightPanel
               panel={panel}
               playtestMounted={playtestOpened}
+              fullScreen={panelFullScreen}
               onClose={() => setPanel(null)}
             />
           </div>
@@ -212,7 +242,17 @@ function SaveIndicator() {
   )
 }
 
-function TopBar() {
+const PAGES: { to: string; label: string; icon: ReactNode }[] = [
+  { to: 'graph', label: 'Graph', icon: <Workflow className="size-4" /> },
+  { to: 'variables', label: 'Variables', icon: <Sigma className="size-4" /> },
+  { to: 'items', label: 'Items', icon: <Package className="size-4" /> },
+  { to: 'rules', label: 'Rules', icon: <GitBranch className="size-4" /> },
+  { to: 'chapters', label: 'Chapters', icon: <Layers className="size-4" /> },
+  { to: 'settings', label: 'Settings', icon: <Settings className="size-4" /> },
+  { to: 'reference', label: 'Help', icon: <BookMarked className="size-4" /> },
+]
+
+function TopBar({ onOpenNav }: { onOpenNav: () => void }) {
   const { gameId = '' } = useParams()
   const meta = useMeta(gameId)
   const issues = useIssues(gameId)
@@ -239,42 +279,27 @@ function TopBar() {
   }
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-surface-700 bg-surface-900 px-3">
+    <header className="flex h-12 shrink-0 items-center gap-1 border-b border-surface-700 bg-surface-900 px-2 md:gap-2 md:px-3">
+      <Button className="md:hidden" variant="ghost" icon={<MenuIcon className="size-5" />} onClick={onOpenNav} aria-label="Scenes" />
       <Tip content="All games">
-        <Link to="/" className="flex size-8 items-center justify-center rounded-md text-zinc-400 hover:bg-surface-800 hover:text-zinc-100">
+        <Link to="/" className="hidden size-8 items-center justify-center rounded-md text-zinc-400 hover:bg-surface-800 hover:text-zinc-100 md:flex">
           <ChevronLeft className="size-4" />
         </Link>
       </Tip>
-      <div className="max-w-56 truncate font-semibold text-zinc-100" title={meta?.title}>
+      <div className="min-w-0 max-w-56 truncate font-semibold text-zinc-100" title={meta?.title}>
         {meta?.title || 'Untitled'}
       </div>
-      <nav className="ml-3 flex items-center gap-0.5">
+      <nav className="ml-3 hidden items-center gap-0.5 md:flex">
         <NavTab to={scenePk ? `scenes/${scenePk}` : '.'} icon={<ListTree className="size-4" />}>
           Scenes
         </NavTab>
-        <NavTab to="graph" icon={<Workflow className="size-4" />}>
-          Graph
-        </NavTab>
-        <NavTab to="variables" icon={<Sigma className="size-4" />}>
-          Variables
-        </NavTab>
-        <NavTab to="items" icon={<Package className="size-4" />}>
-          Items
-        </NavTab>
-        <NavTab to="rules" icon={<GitBranch className="size-4" />}>
-          Rules
-        </NavTab>
-        <NavTab to="chapters" icon={<Layers className="size-4" />}>
-          Chapters
-        </NavTab>
-        <NavTab to="settings" icon={<Settings className="size-4" />}>
-          Settings
-        </NavTab>
-        <NavTab to="reference" icon={<BookMarked className="size-4" />}>
-          Help
-        </NavTab>
+        {PAGES.map((page) => (
+          <NavTab key={page.to} to={page.to} icon={page.icon}>
+            {page.label}
+          </NavTab>
+        ))}
       </nav>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-1 md:gap-2">
         <button
           type="button"
           onClick={openPalette}
@@ -303,7 +328,7 @@ function TopBar() {
           )}
           {errors === 0 && warnings === 0 && (
             <span className="flex items-center gap-1 text-emerald-400">
-              <Check className="size-3.5" /> No issues
+              <Check className="size-3.5" /> <span className="hidden sm:inline">No issues</span>
             </span>
           )}
         </Button>
@@ -312,28 +337,38 @@ function TopBar() {
           variant={panel === 'playtest' ? 'secondary' : 'primary'}
           icon={<Play className="size-3.5" />}
           onClick={() => (panel === 'playtest' ? setPanel(null) : playtest())}
+          aria-label="Playtest"
         >
-          Playtest
+          <span className="hidden sm:inline">Playtest</span>
         </Button>
         <Menu>
           <MenuTrigger asChild>
-            <Button size="sm" icon={<Download className="size-3.5" />}>
+            <Button size="sm" className="hidden md:inline-flex" icon={<Download className="size-3.5" />}>
               Export
             </Button>
           </MenuTrigger>
           <MenuContent>
-            <MenuItem icon={<Gamepad2 className="size-3.5" />} onSelect={() => setStandaloneOpen(true)}>
-              Ready-to-play game (Windows, Mac, Linux)…
+            <ExportItems onStandalone={() => setStandaloneOpen(true)} onPlayerFile={() => void exportPlayer()} gameId={gameId} />
+          </MenuContent>
+        </Menu>
+        <Menu>
+          <MenuTrigger asChild>
+            <Button size="sm" variant="ghost" className="md:hidden" icon={<MoreHorizontal className="size-5" />} aria-label="More" />
+          </MenuTrigger>
+          <MenuContent>
+            {PAGES.map((page) => (
+              <MenuItem key={page.to} icon={page.icon} onSelect={() => navigate(`/games/${gameId}/${page.to}`)}>
+                {page.label}
+              </MenuItem>
+            ))}
+            <MenuItem icon={<Search className="size-4" />} onSelect={openPalette}>
+              Jump to a scene…
             </MenuItem>
-            <MenuItem icon={<Play className="size-3.5" />} onSelect={() => void exportPlayer()}>
-              Game file only (.cyoa.json)
+            <MenuItem icon={<ChevronLeft className="size-4" />} onSelect={() => navigate('/')}>
+              All games
             </MenuItem>
-            <MenuItem
-              icon={<FileJson className="size-3.5" />}
-              onSelect={() => void downloadFile(api.exportUrl(gameId, 'project'))}
-            >
-              Project backup (with notes)
-            </MenuItem>
+            <MenuSeparator />
+            <ExportItems onStandalone={() => setStandaloneOpen(true)} onPlayerFile={() => void exportPlayer()} gameId={gameId} />
           </MenuContent>
         </Menu>
       </div>
@@ -368,6 +403,30 @@ function TopBar() {
   )
 }
 
+function ExportItems({
+  gameId,
+  onStandalone,
+  onPlayerFile,
+}: {
+  gameId: string
+  onStandalone: () => void
+  onPlayerFile: () => void
+}) {
+  return (
+    <>
+      <MenuItem icon={<Gamepad2 className="size-3.5" />} onSelect={onStandalone}>
+        Ready-to-play game (Windows, Mac, Linux)…
+      </MenuItem>
+      <MenuItem icon={<Play className="size-3.5" />} onSelect={onPlayerFile}>
+        Game file only (.cyoa.json)
+      </MenuItem>
+      <MenuItem icon={<FileJson className="size-3.5" />} onSelect={() => void downloadFile(api.exportUrl(gameId, 'project'))}>
+        Project backup (with notes)
+      </MenuItem>
+    </>
+  )
+}
+
 /** Where to go to fix an issue (the scene editor, or the relevant table). */
 export function issueLink(issue: Issue, gameId: string, scenes: Scene[]): string | null {
   const base = `/games/${gameId}`
@@ -386,10 +445,12 @@ export function issueLink(issue: Issue, gameId: string, scenes: Scene[]): string
 function RightPanel({
   panel,
   playtestMounted,
+  fullScreen,
   onClose,
 }: {
   panel: PanelKind | null
   playtestMounted: boolean
+  fullScreen: boolean
   onClose: () => void
 }) {
   const [width, setWidth] = useState(() => Number(localStorage.getItem('cyoa.panelWidth')) || 560)
@@ -412,13 +473,19 @@ function RightPanel({
   if (!panel && !playtestMounted) return null
   return (
     <aside
-      className={cx('relative flex shrink-0 flex-col border-l border-surface-700 bg-surface-900', !panel && 'hidden')}
-      style={{ width }}
+      className={cx(
+        'flex flex-col bg-surface-900',
+        fullScreen ? 'fixed inset-0 z-40' : 'relative shrink-0 border-l border-surface-700',
+        !panel && 'hidden',
+      )}
+      style={fullScreen ? undefined : { width }}
     >
-      <div
-        onPointerDown={startResize}
-        className="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize hover:bg-accent-500/30"
-      />
+      {!fullScreen && (
+        <div
+          onPointerDown={startResize}
+          className="absolute inset-y-0 -left-1 z-10 w-2 cursor-col-resize hover:bg-accent-500/30"
+        />
+      )}
       {panel === 'issues' && <IssuesPanel onClose={onClose} />}
       {playtestMounted && (
         <div className={cx('flex min-h-0 flex-1 flex-col', panel !== 'playtest' && 'hidden')}>

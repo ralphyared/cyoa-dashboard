@@ -24,7 +24,7 @@ export function BackupsPage() {
   return (
     <div className="flex h-full flex-col">
       <AppHeader />
-      <main className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-6 py-8">
+      <main className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">
         <div className="mb-2 flex items-center justify-between">
           <h1 className="text-xl font-semibold text-zinc-100">Backups</h1>
           <Button variant="primary" icon={<Plus className="size-4" />} loading={busy} onClick={() => void create()}>

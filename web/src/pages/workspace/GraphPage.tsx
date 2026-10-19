@@ -22,6 +22,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { matchScene } from '@/components/ScenePicker'
 import { Button, Checkbox, Dialog, Segmented, Select, cx } from '@/components/ui'
+import { useIsPhone } from '@/lib/media'
 import { useGame, useGameActions, useIssues, useScene } from '@/lib/queries'
 import type { Chapter, GameDetail, Scene } from '@/lib/types'
 import { newChoice } from './ChoiceCard'
@@ -135,6 +136,7 @@ function Graph() {
   const [search, setSearch] = useState('')
   const [confirmLayout, setConfirmLayout] = useState(false)
   const counts = useMemo(() => issuesByScene(issues?.issues), [issues])
+  const isPhone = useIsPhone()
 
   const scenes = data?.scenes
   const fallback = useMemo(() => (scenes ? layout(scenes, direction) : new Map()), [
@@ -278,9 +280,9 @@ function Graph() {
         >
           <Background gap={24} size={1} color="#27272a" />
           <Controls showInteractive={false} />
-          <MiniMap pannable zoomable nodeColor={(n) => ((n.data as SceneNodeData).chapter?.color as string) || '#3f3f46'} maskColor="rgba(0,0,0,0.6)" />
+          {!isPhone && <MiniMap pannable zoomable nodeColor={(n) => ((n.data as SceneNodeData).chapter?.color as string) || '#3f3f46'} maskColor="rgba(0,0,0,0.6)" />}
         </ReactFlow>
-        <div className="absolute top-3 left-3 flex flex-wrap items-center gap-2 rounded-lg border border-surface-700 bg-surface-900/95 p-1.5 shadow-lg">
+        <div className="absolute top-2 right-2 left-2 flex flex-wrap items-center gap-2 rounded-lg border border-surface-700 bg-surface-900/95 p-1.5 shadow-lg md:top-3 md:right-auto md:left-3">
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -293,7 +295,7 @@ function Graph() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Find scene…"
-              className="h-7 w-40 rounded-md border border-surface-700 bg-surface-950 pr-2 pl-7 text-xs text-zinc-200 outline-none focus:border-accent-600"
+              className="h-7 w-32 rounded-md sm:w-40 border border-surface-700 bg-surface-950 pr-2 pl-7 text-xs text-zinc-200 outline-none focus:border-accent-600"
             />
           </form>
           {data.chapters.length > 0 && (
@@ -331,15 +333,22 @@ function Graph() {
             label={<span className="flex items-center gap-1"><Tag className="size-3" /> labels</span>}
           />
         </div>
-        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded bg-surface-900/90 px-2 py-1 text-[11px] text-zinc-500">
+        <div className="pointer-events-none absolute bottom-3 left-1/2 hidden -translate-x-1/2 rounded bg-surface-900/90 px-2 py-1 text-[11px] text-zinc-500 md:block">
           Drag from a scene's bottom dot to another scene to add a choice, or to empty space to create a new scene.
           Dashed lines have conditions.
         </div>
       </div>
       {selectedScene && (
-        <div className="flex w-[min(560px,50%)] shrink-0 flex-col border-l border-surface-700 bg-surface-950">
+        <div
+          className={cx(
+            'flex flex-col bg-surface-950',
+            isPhone ? 'fixed inset-0 z-30' : 'w-[min(560px,50%)] shrink-0 border-l border-surface-700',
+          )}
+        >
           <div className="flex items-center justify-between border-b border-surface-700 px-3 py-1.5">
-            <span className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">Edit scene</span>
+            <span className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
+              Edit scene
+            </span>
             <Button size="sm" variant="ghost" icon={<X className="size-4" />} onClick={() => select(null)} aria-label="Close" />
           </div>
           <div className="min-h-0 flex-1">

@@ -58,7 +58,7 @@ export function RulesPage() {
       {rules.map((rule, i) => {
         const ruleIssues = issues.filter((x) => x.rule === rule.id)
         return (
-          <div key={rule.id} className="flex flex-col gap-4 rounded-lg border border-surface-700 bg-surface-900 p-4">
+          <div key={rule.id} className="flex flex-col gap-4 rounded-lg border border-surface-700 bg-surface-900 p-3 sm:p-4">
             <div className="flex items-center gap-2">
               <Input
                 className="flex-1 font-medium"
@@ -81,7 +81,7 @@ export function RulesPage() {
             <Field label="…and then go to">
               <ScenePicker
                 gameId={gameId}
-                className="w-72"
+                className="w-full sm:w-72"
                 value={rule.goto ?? ''}
                 allowNone="Stay where the player is"
                 onChange={(goto) => change(i, { goto: goto || null })}

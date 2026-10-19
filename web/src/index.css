@@ -18,9 +18,14 @@
 }
 
 html,
-body,
+body {
+  height: 100%;
+}
+
+/* dvh follows the mobile browser's toolbars and on-screen keyboard */
 #root {
   height: 100%;
+  height: 100dvh;
 }
 
 body {
@@ -138,4 +143,15 @@ body {
 }
 .xterm-viewport {
   background: #0b0b0e !important;
+}
+
+/* Phones: iOS zooms into any field with text smaller than 16px when it's tapped. */
+@media (max-width: 767px) and (pointer: coarse) {
+  input,
+  select,
+  textarea,
+  .cm-editor,
+  .cm-editor.cm-prose .cm-scroller {
+    font-size: 16px !important;
+  }
 }

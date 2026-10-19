@@ -52,7 +52,7 @@ export function ItemsPage() {
         <div className="flex flex-col gap-2">
           {items.map((item, i) => (
             <div key={item.id} className="flex flex-col gap-2 rounded-lg border border-surface-700 bg-surface-900 p-3 sm:flex-row sm:items-start">
-              <div className="flex w-48 shrink-0 flex-col gap-1">
+              <div className="flex shrink-0 flex-row items-center gap-2 sm:w-48 sm:flex-col sm:items-start sm:gap-1">
                 <RenameButton kind="item" current={item.id} taken={ids} />
                 {unused.has(item.id) && <UnusedBadge />}
               </div>
@@ -65,7 +65,7 @@ export function ItemsPage() {
                   onChange={(e) => change(i, { description: e.target.value })}
                 />
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-2">
+              <div className="flex shrink-0 flex-row items-center justify-between gap-2 sm:flex-col sm:items-end">
                 <Checkbox checked={item.stackable} onChange={(stackable) => change(i, { stackable })} label="Stackable" />
                 <div className="flex">
                   <UsagePopover kind="item" name={item.id} />
@@ -77,9 +77,9 @@ export function ItemsPage() {
         </div>
       )}
 
-      <form onSubmit={add} className="flex items-start gap-2">
-        <Input className="w-56" placeholder="New item name, e.g. Rusty key" value={name} onChange={(e) => setName(e.target.value)} />
-        <Field error={idError} className="w-48">
+      <form onSubmit={add} className="flex flex-wrap items-start gap-2">
+        <Input className="w-full sm:w-56" placeholder="New item name, e.g. Rusty key" value={name} onChange={(e) => setName(e.target.value)} />
+        <Field error={idError} className="w-40 sm:w-48">
           <Input
             className="font-mono"
             placeholder="id"

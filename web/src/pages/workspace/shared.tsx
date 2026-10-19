@@ -32,8 +32,8 @@ export function PageShell({
 }) {
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto flex max-w-5xl flex-col gap-5 px-6 py-6">
-        <div className="flex items-start justify-between gap-4">
+      <div className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-4 sm:px-6 sm:py-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-semibold text-zinc-100">{title}</h1>
             {description && <p className="mt-1 max-w-2xl text-sm text-zinc-500">{description}</p>}

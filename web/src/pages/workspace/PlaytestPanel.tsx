@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronUp,
   Home,
+  Keyboard,
   Minus,
   Play,
   Plus,
@@ -16,6 +17,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Button, Checkbox, Input, Select, Tip, cx } from '@/components/ui'
+import { useIsPhone, useIsTouch } from '@/lib/media'
 import { useMeta, useScenes } from '@/lib/queries'
 import type { PlaytestState, Value } from '@/lib/types'
 import { useWorkspace } from './context'
@@ -43,9 +45,18 @@ export function PlaytestPanel({ onClose, visible }: { onClose: () => void; visib
   const [problems, setProblems] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [follow, setFollow] = useState(() => localStorage.getItem('cyoa.follow') === '1')
-  const [showState, setShowState] = useState(true)
+  const isPhone = useIsPhone()
+  const isTouch = useIsTouch()
+  // On touch screens the on-screen keyboard only opens when asked for (⌨).
+  const autoFocus = useRef(!isTouch)
+  autoFocus.current = !isTouch
+  const [showState, setShowState] = useState(() => !window.matchMedia('(max-width: 767px)').matches)
   const lastScene = useRef<string | null>(null)
   const [generation, setGeneration] = useState(0)
+
+  const focusTerminal = useCallback(() => {
+    if (autoFocus.current) term.current?.focus()
+  }, [])
 
   const send = useCallback((message: Record<string, unknown>) => {
     const socket = ws.current
@@ -62,9 +73,9 @@ export function PlaytestPanel({ onClose, visible }: { onClose: () => void; visib
       term.current?.reset()
       setStatus('running')
       send({ type: 'start', ...size(), ...(scene ? { scene } : {}), ...extra })
-      term.current?.focus()
+      focusTerminal()
     },
-    [send],
+    [send, focusTerminal],
   )
 
   // terminal
@@ -72,7 +83,7 @@ export function PlaytestPanel({ onClose, visible }: { onClose: () => void; visib
     if (!host.current) return
     const t = new Terminal({
       fontFamily: 'ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace',
-      fontSize: 13,
+      fontSize: window.matchMedia('(max-width: 767px)').matches ? 12 : 13,
       cursorBlink: true,
       convertEol: false,
       theme: {
@@ -150,10 +161,10 @@ export function PlaytestPanel({ onClose, visible }: { onClose: () => void; visib
         } catch {
           // ignore
         }
-        term.current?.focus()
+        focusTerminal()
       })
     }
-  }, [visible])
+  }, [visible, focusTerminal])
 
   // follow along in the editor
   useEffect(() => {
@@ -174,8 +185,8 @@ export function PlaytestPanel({ onClose, visible }: { onClose: () => void; visib
       <div className="flex items-center gap-1 border-b border-surface-700 px-2 py-1.5">
         <div className="mr-1 text-sm font-semibold text-zinc-200">Playtest</div>
         <Tip content="New game from the start scene">
-          <Button size="sm" variant="ghost" icon={<Play className="size-3.5" />} onClick={() => start(meta?.start_scene)}>
-            Start
+          <Button size="sm" variant="ghost" icon={<Play className="size-3.5" />} onClick={() => start(meta?.start_scene)} aria-label="Start">
+            <span className="hidden sm:inline">Start</span>
           </Button>
         </Tip>
         <Tip content="Open the title screen, like a player would">
@@ -190,10 +201,11 @@ export function PlaytestPanel({ onClose, visible }: { onClose: () => void; visib
             onClick={() => {
               term.current?.reset()
               send({ type: 'reload' })
-              term.current?.focus()
+              focusTerminal()
             }}
+            aria-label="Reload"
           >
-            Reload
+            <span className="hidden sm:inline">Reload</span>
           </Button>
         </Tip>
         <Tip content="Stop">
@@ -205,8 +217,17 @@ export function PlaytestPanel({ onClose, visible }: { onClose: () => void; visib
           />
         </Tip>
         <div className="ml-auto flex items-center gap-2">
+          {isTouch && (
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<Keyboard className="size-4" />}
+              onClick={() => term.current?.focus()}
+              aria-label="Show keyboard"
+            />
+          )}
           <Checkbox
-            className="text-xs"
+            className="hidden text-xs md:inline-flex"
             checked={follow}
             onChange={(f) => {
               setFollow(f)
@@ -220,7 +241,7 @@ export function PlaytestPanel({ onClose, visible }: { onClose: () => void; visib
       </div>
 
       <div className="relative min-h-0 flex-1 bg-[#0b0b0e]">
-        <div ref={host} className="absolute inset-0" onClick={() => term.current?.focus()} />
+        <div ref={host} className="absolute inset-0" onClick={focusTerminal} />
         {(status === 'idle' || status === 'exited' || status === 'disconnected' || status === 'connecting') && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60">
             {status === 'connecting' && <div className="text-sm text-zinc-400">Connecting…</div>}
@@ -248,6 +269,14 @@ export function PlaytestPanel({ onClose, visible }: { onClose: () => void; visib
           </div>
         )}
       </div>
+
+      {(isTouch || isPhone) && (
+        <TapBar
+          onSend={(data) => {
+            if (status === 'running') send({ type: 'input', data })
+          }}
+        />
+      )}
 
       {error && (
         <div className="flex items-center gap-2 border-t border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-300">
@@ -278,7 +307,7 @@ export function PlaytestPanel({ onClose, visible }: { onClose: () => void; visib
           )}
         </button>
         {showState && (
-          <div className="max-h-72 overflow-y-auto px-3 pb-3">
+          <div className="max-h-[35vh] overflow-y-auto px-3 pb-3 md:max-h-72">
             {!state ? (
               <div className="text-xs text-zinc-500">Start playing to see variables and inventory here.</div>
             ) : (
@@ -304,6 +333,47 @@ export function PlaytestPanel({ onClose, visible }: { onClose: () => void; visib
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+const TAP_ROWS: [string, string, string][][] = [
+  '123456789'.split('').map((d) => [d, d, `${d}\r`]),
+  [
+    ['I', 'Inventory', 'i\r'],
+    ['S', 'Save', 's\r'],
+    ['L', 'Load', 'l\r'],
+    ['O', 'Options', 'o\r'],
+    ['Q', 'Quit', 'q\r'],
+    ['A', 'Autosave slot', 'a\r'],
+    ['Y', 'Yes', 'y\r'],
+    ['N', 'No', 'n\r'],
+    ['⏎', 'Enter', '\r'],
+  ],
+]
+
+/** Big buttons for the player's keys, so phones don't need the on-screen keyboard. */
+function TapBar({ onSend }: { onSend: (data: string) => void }) {
+  return (
+    <div className="flex flex-col gap-1 border-t border-surface-700 bg-surface-900 p-1.5">
+      {TAP_ROWS.map((row, i) => (
+        <div key={i} className="grid grid-cols-9 gap-1">
+          {row.map(([label, title, data]) => (
+            <button
+              key={label}
+              type="button"
+              tabIndex={-1}
+              title={title}
+              aria-label={title}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onSend(data)}
+              className="h-10 rounded-md bg-surface-800 font-mono text-sm text-zinc-200 active:bg-accent-600"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ))}
     </div>
   )
 }

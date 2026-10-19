@@ -57,7 +57,8 @@ export function VariablesPage() {
           Add one below, e.g. <code>hp</code> as a number.
         </Empty>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-surface-700">
+        <>
+        <div className="hidden overflow-x-auto rounded-lg border border-surface-700 md:block">
           <table className="w-full text-sm">
             <thead className="bg-surface-900 text-left text-xs text-zinc-500">
               <tr>
@@ -81,20 +82,7 @@ export function VariablesPage() {
                     <Input className="h-7 w-32" value={v.label} placeholder={v.name} onChange={(e) => change(i, { label: e.target.value })} />
                   </td>
                   <td className="px-3 py-1.5">
-                    <Select
-                      className="h-7 w-auto"
-                      value={v.type}
-                      onChange={(e) => {
-                        const t = e.target.value as VarType
-                        change(i, { type: t, initial: defaultFor(t), min: null, max: null })
-                      }}
-                    >
-                      {Object.entries(TYPE_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </Select>
+                    <TypeSelect value={v.type} onChange={(t) => change(i, { type: t, initial: defaultFor(t), min: null, max: null })} />
                   </td>
                   <td className="px-3 py-1.5">
                     <InitialInput variable={v} onChange={(initial) => change(i, { initial })} />
@@ -114,10 +102,46 @@ export function VariablesPage() {
             </tbody>
           </table>
         </div>
+        <div className="flex flex-col gap-2 md:hidden">
+          {variables.map((v, i) => (
+            <div key={v.name} className="flex flex-col gap-2 rounded-lg border border-surface-700 bg-surface-900 p-3">
+              <div className="flex items-center gap-2">
+                <RenameButton kind="variable" current={v.name} taken={names} />
+                {unused.has(v.name) && <UnusedBadge />}
+                <div className="ml-auto flex">
+                  <UsagePopover kind="variable" name={v.name} compact />
+                  <Button size="xs" variant="ghost" icon={<Trash2 className="size-3.5" />} aria-label="Delete" onClick={() => setDeleting(v)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Label">
+                  <Input className="h-8" value={v.label} placeholder={v.name} onChange={(e) => change(i, { label: e.target.value })} />
+                </Field>
+                <Field label="Type">
+                  <TypeSelect value={v.type} onChange={(t) => change(i, { type: t, initial: defaultFor(t), min: null, max: null })} />
+                </Field>
+                <Field label="Starts at">
+                  <InitialInput variable={v} onChange={(initial) => change(i, { initial })} />
+                </Field>
+                {v.type === 'number' && (
+                  <>
+                    <Field label="Min">
+                      <BoundInput value={v.min} variables={variables} self={v.name} onChange={(min) => change(i, { min })} />
+                    </Field>
+                    <Field label="Max">
+                      <BoundInput value={v.max} variables={variables} self={v.name} onChange={(max) => change(i, { max })} />
+                    </Field>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        </>
       )}
 
-      <form onSubmit={add} className="flex items-start gap-2">
-        <Field error={touched && name ? nameError : null} className="w-56">
+      <form onSubmit={add} className="flex flex-wrap items-start gap-2">
+        <Field error={touched && name ? nameError : null} className="w-full sm:w-56">
           <Input className="font-mono" placeholder="new_variable" value={name} onChange={(e) => setName(e.target.value.toLowerCase())} />
         </Field>
         <Select className="w-auto" value={type} onChange={(e) => setType(e.target.value as VarType)}>
@@ -147,6 +171,18 @@ export function VariablesPage() {
   )
 }
 
+function TypeSelect({ value, onChange }: { value: VarType; onChange: (type: VarType) => void }) {
+  return (
+    <Select className="h-7 w-auto" value={value} onChange={(e) => onChange(e.target.value as VarType)}>
+      {Object.entries(TYPE_LABELS).map(([type, label]) => (
+        <option key={type} value={type}>
+          {label}
+        </option>
+      ))}
+    </Select>
+  )
+}
+
 function InitialInput({ variable, onChange }: { variable: Variable; onChange: (value: Value) => void }) {
   if (variable.type === 'bool') {
     return (
@@ -167,7 +203,7 @@ function NumberCell({ value, onChange }: { value: number; onChange: (n: number) 
   return (
     <Input
       type="number"
-      className="h-7 w-24 font-mono"
+      className="h-7 w-20 font-mono"
       value={text}
       onChange={(e) => {
         setText(e.target.value)
@@ -193,9 +229,9 @@ function BoundInput({
   const others = variables.filter((v) => v.type === 'number' && v.name !== self)
   const mode = value === null ? 'none' : typeof value === 'string' ? 'var' : 'number'
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center gap-1">
       <Select
-        className="h-7 w-auto"
+        className="h-7 w-auto max-w-full"
         value={mode === 'var' ? `var:${value}` : mode}
         onChange={(e) => {
           const v = e.target.value

@@ -20,6 +20,7 @@ import {
   Search,
   Skull,
   Trophy,
+  X,
 } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
 import { NavLink, useNavigate, useParams } from 'react-router'
@@ -61,7 +62,7 @@ function selectSidebar(game: GameDetail): SidebarData {
   }
 }
 
-export function Sidebar() {
+export function Sidebar({ drawer, onClose }: { drawer?: boolean; onClose?: () => void } = {}) {
   const { gameId } = useWorkspace()
   const { pk: currentPk } = useParams()
   const navigate = useNavigate()
@@ -125,7 +126,7 @@ export function Sidebar() {
     void actions.setOrder(order)
   }
 
-  if (hidden) {
+  if (hidden && !drawer) {
     return (
       <div className="flex w-10 shrink-0 flex-col items-center border-r border-surface-700 bg-surface-900 py-2">
         <Tip content="Show scenes">
@@ -137,7 +138,7 @@ export function Sidebar() {
 
   const searching = query.trim() !== '' || problemsOnly
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-surface-700 bg-surface-900">
+    <aside className={cx('flex shrink-0 flex-col border-r border-surface-700 bg-surface-900', drawer ? 'w-full' : 'w-64')}>
       <div className="flex items-center gap-1 px-3 pt-3 pb-2">
         <div className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
           Scenes <span className="text-zinc-600">{data?.scenes.length ?? 0}</span>
@@ -146,9 +147,13 @@ export function Sidebar() {
           <Button size="xs" variant="ghost" icon={<Plus className="size-3.5" />} onClick={() => void newScene()}>
             New
           </Button>
-          <Tip content="Hide">
-            <Button size="xs" variant="ghost" icon={<PanelLeftClose className="size-3.5" />} onClick={toggleHidden} />
-          </Tip>
+          {drawer ? (
+            <Button size="sm" variant="ghost" icon={<X className="size-4" />} onClick={onClose} aria-label="Close" />
+          ) : (
+            <Tip content="Hide">
+              <Button size="xs" variant="ghost" icon={<PanelLeftClose className="size-3.5" />} onClick={toggleHidden} />
+            </Tip>
+          )}
         </div>
       </div>
       <div className="px-3 pb-2">
@@ -190,7 +195,7 @@ export function Sidebar() {
                         gameId={gameId}
                         isStart={scene.id === data?.start}
                         counts={counts.get(scene.id)}
-                        draggable={!searching}
+                        draggable={!searching && !drawer}
                       />
                     ))}
                   </SortableContext>

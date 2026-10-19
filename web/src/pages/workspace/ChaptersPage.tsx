@@ -61,7 +61,7 @@ export function ChaptersPage() {
           {chapters.map((chapter, i) => {
             const count = scenes.filter((s) => s.chapter === chapter.id).length
             return (
-              <div key={chapter.id} className="flex items-center gap-3 rounded-lg border border-surface-700 bg-surface-900 px-3 py-2">
+              <div key={chapter.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-surface-700 bg-surface-900 px-3 py-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <button
@@ -84,9 +84,9 @@ export function ChaptersPage() {
                     ))}
                   </PopoverContent>
                 </Popover>
-                <Input className="flex-1" value={chapter.title} placeholder="Chapter title" onChange={(e) => change(i, { title: e.target.value })} />
+                <Input className="min-w-40 flex-1" value={chapter.title} placeholder="Chapter title" onChange={(e) => change(i, { title: e.target.value })} />
                 <RenameButton kind="chapter" current={chapter.id} taken={ids} />
-                <span className="w-20 text-right text-xs text-zinc-500">
+                <span className="text-xs text-zinc-500 sm:w-20 sm:text-right">
                   {count} scene{count === 1 ? '' : 's'}
                 </span>
                 <Button size="sm" variant="ghost" icon={<ArrowUp className="size-3.5" />} disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up" />
@@ -97,8 +97,8 @@ export function ChaptersPage() {
           })}
         </div>
       )}
-      <form onSubmit={add} className="flex items-start gap-2">
-        <Input className="w-72" placeholder="New chapter title, e.g. Chapter 1: The Road" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <form onSubmit={add} className="flex flex-wrap items-start gap-2">
+        <Input className="w-full sm:w-72" placeholder="New chapter title, e.g. Chapter 1: The Road" value={title} onChange={(e) => setTitle(e.target.value)} />
         <Button type="submit" icon={<Plus className="size-4" />} disabled={!newId || !!idError}>
           Add chapter
         </Button>

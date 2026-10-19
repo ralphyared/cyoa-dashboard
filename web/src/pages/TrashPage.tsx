@@ -29,7 +29,7 @@ export function TrashPage() {
   return (
     <div className="flex h-full flex-col">
       <AppHeader />
-      <main className="mx-auto w-full max-w-4xl flex-1 overflow-y-auto px-6 py-8">
+      <main className="mx-auto w-full max-w-4xl flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">
         <h1 className="mb-6 text-xl font-semibold text-zinc-100">Trash</h1>
         {trash.isLoading && <Spinner />}
         {empty && <Empty icon={<Trash2 className="size-10" />} title="The trash is empty" />}
@@ -37,7 +37,7 @@ export function TrashPage() {
           <section className="mb-8 flex flex-col gap-2">
             <SectionTitle>Games</SectionTitle>
             {trash.data.games.map((game) => (
-              <div key={game.id} className="flex items-center gap-3 rounded-md border border-surface-700 bg-surface-900 px-3 py-2">
+              <div key={game.id} className="flex flex-wrap items-center gap-3 rounded-md border border-surface-700 bg-surface-900 px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm text-zinc-200">{game.title}</div>
                   <div className="text-xs text-zinc-500">
@@ -61,7 +61,7 @@ export function TrashPage() {
           <section className="flex flex-col gap-2">
             <SectionTitle>Scenes</SectionTitle>
             {trash.data.scenes.map((scene) => (
-              <div key={scene.pk} className="flex items-center gap-3 rounded-md border border-surface-700 bg-surface-900 px-3 py-2">
+              <div key={scene.pk} className="flex flex-wrap items-center gap-3 rounded-md border border-surface-700 bg-surface-900 px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm text-zinc-200">
                     {scene.title || scene.id} <span className="font-mono text-xs text-zinc-500">{scene.id}</span>

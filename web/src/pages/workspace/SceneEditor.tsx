@@ -184,7 +184,7 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className={cx('mx-auto flex flex-col gap-5 px-6 py-5', compact ? 'max-w-none' : 'max-w-3xl')}>
+      <div className={cx('mx-auto flex flex-col gap-5 px-4 py-4 sm:px-6 sm:py-5', compact ? 'max-w-none' : 'max-w-3xl')}>
         {/* header */}
         <div className="flex flex-col gap-2">
           <div className="flex items-start gap-2">
@@ -193,10 +193,16 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
               value={scene.title}
               onChange={(e) => update({ title: e.target.value })}
               placeholder="Scene title (for you; players see the chapter)"
-              className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 py-0.5 text-xl font-semibold text-zinc-100 outline-none placeholder:font-normal placeholder:text-zinc-600 hover:border-surface-700 focus:border-accent-600"
+              className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 py-0.5 text-lg font-semibold sm:text-xl text-zinc-100 outline-none placeholder:font-normal placeholder:text-zinc-600 hover:border-surface-700 focus:border-accent-600"
             />
-            <Button size="sm" variant="primary" icon={<Play className="size-3.5" />} onClick={() => playtest(scene.id)}>
-              Play from here
+            <Button
+              size="sm"
+              variant="primary"
+              icon={<Play className="size-3.5" />}
+              onClick={() => playtest(scene.id)}
+              aria-label="Play from here"
+            >
+              <span className="hidden sm:inline">Play from here</span>
             </Button>
             <Menu>
               <MenuTrigger asChild>
@@ -266,7 +272,7 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
             </Select>
             {scene.ending && (
               <Input
-                className="h-7 w-56 text-xs"
+                className="h-7 w-full text-xs sm:w-56"
                 placeholder="Ending name (shown on the end screen)"
                 value={scene.ending.title}
                 onChange={(e) => update({ ending: { ...scene.ending!, title: e.target.value } })}

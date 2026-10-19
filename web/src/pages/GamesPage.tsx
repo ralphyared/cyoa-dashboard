@@ -75,8 +75,8 @@ export function GamesPage() {
   return (
     <div className="flex h-full flex-col">
       <AppHeader />
-      <main className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-6 py-8">
-        <div className="mb-6 flex items-center justify-between gap-3">
+      <main className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold text-zinc-100">Your games</h1>
           <div className="flex gap-2">
             <input

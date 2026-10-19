@@ -97,22 +97,31 @@ export function ChoiceCard({
         isDragging && 'z-10 opacity-80 shadow-xl',
       )}
     >
-      <div className="flex items-center gap-1.5 p-2">
-        <span {...attributes} {...listeners} className="cursor-grab text-zinc-600 hover:text-zinc-300" aria-label="Drag to reorder">
-          <GripVertical className="size-4" />
-        </span>
-        <span className="w-5 shrink-0 text-center font-mono text-xs text-zinc-500">{index + 1})</span>
-        <Input
-          ref={textInput}
-          value={choice.text}
-          onChange={(e) => set({ text: e.target.value })}
-          placeholder="What the player can do…"
-          className="min-w-0 flex-1"
-        />
+      {/* one row on wide screens; text above destination on phones */}
+      <div className="flex flex-col gap-1.5 p-2 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <span
+            {...attributes}
+            {...listeners}
+            className="cursor-grab touch-none text-zinc-600 hover:text-zinc-300"
+            aria-label="Drag to reorder"
+          >
+            <GripVertical className="size-4" />
+          </span>
+          <span className="w-5 shrink-0 text-center font-mono text-xs text-zinc-500">{index + 1})</span>
+          <Input
+            ref={textInput}
+            value={choice.text}
+            onChange={(e) => set({ text: e.target.value })}
+            placeholder="What the player can do…"
+            className="min-w-0 flex-1"
+          />
+        </div>
+        <div className="flex items-center gap-1.5 pl-[2.6rem] sm:pl-0">
         <ArrowRight className="size-3.5 shrink-0 text-zinc-600" />
         <ScenePicker
           gameId={gameId}
-          className="w-56"
+          className="min-w-0 flex-1 sm:w-56 sm:flex-none"
           value={choice.target}
           onChange={(t) => set({ target: t })}
           onCreate={onCreateTarget}
@@ -141,6 +150,7 @@ export function ChoiceCard({
             </MenuItem>
           </MenuContent>
         </Menu>
+        </div>
       </div>
 
       <button
