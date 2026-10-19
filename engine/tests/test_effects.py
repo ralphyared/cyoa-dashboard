@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import io
+import os
 import random
+import select
+import sys
+import time
 
+import pytest
 from rich.console import Console
 
 from cyoa.markup import style
@@ -106,3 +111,40 @@ def test_plain_type_uses_the_given_speed():
     for line in to_text(page).wrap(term.console, 70):
         player.play(line)
     assert round(term.slept, 3) == 0.4
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Unix terminals")
+def test_keys_are_hidden_and_thrown_away_while_text_animates(monkeypatch):
+    import pty
+    import termios
+
+    master, slave = pty.openpty()
+    stdin = os.fdopen(slave, "r")
+    monkeypatch.setattr(sys, "stdin", stdin)
+
+    def line_mode_and_echo() -> int:
+        return termios.tcgetattr(slave)[3] & (termios.ICANON | termios.ECHO)
+
+    def pressed_soon(term: Terminal) -> bool:
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            if term.key_pressed():
+                return True
+            time.sleep(0.01)
+        return False
+
+    try:
+        term = Terminal(Console(file=io.StringIO()), interactive=True)
+        assert line_mode_and_echo() == termios.ICANON | termios.ECHO
+        with term.skippable():
+            assert line_mode_and_echo() == 0
+            os.write(master, b"x")  # any key, not just Enter
+            assert pressed_soon(term)
+            os.write(master, b"\r")
+        assert line_mode_and_echo() == termios.ICANON | termios.ECHO
+        assert not term.key_pressed()  # thrown away
+        ready, _, _ = select.select([master], [], [], 0.1)
+        assert not ready or b"x" not in os.read(master, 1024)  # never echoed
+    finally:
+        stdin.close()
+        os.close(master)

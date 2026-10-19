@@ -2,7 +2,7 @@
 
 Effects travel from the markup to here as rich Style metadata (``meta["fx"]``);
 pauses are zero-width marker characters carrying ``meta["pause"]``. Any key press
-(Enter) skips the remaining animation on the page.
+skips the remaining animation on the page (see ``Terminal.skippable``).
 """
 
 from __future__ import annotations

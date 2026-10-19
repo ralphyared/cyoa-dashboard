@@ -68,7 +68,7 @@ format anything you appended to tests too.
    Windows/macOS×2/Linux with PyInstaller (with a smoke test that attaches a story)
    and creates the release. The dashboard re-checks releases every 6 h; to switch
    immediately, log in and `POST /api/players/update` (or the export dialog's
-   "Check for a newer player"). Latest: **player-v1.3.0**. Games exported with an
+   "Check for a newer player"). Latest: **player-v1.3.1**. Games exported with an
    older player don't get new features until re-exported.
 4. Watch GitHub Actions via the public API (no auth needed):
    `curl -s "https://api.github.com/repos/ralphyared/cyoa-dashboard/actions/runs?per_page=5"`.

@@ -119,12 +119,11 @@ class Player:
                 self.term.print(line, width=self.width, soft_wrap=True)
             return
         player = LinePlayer(self.term, base_delay=base_delay, effects=effects, type_cps=speed)
-        for line in lines:
-            self.term.print(MARGIN, end="", soft_wrap=True)
-            player.play(line)
-            self.term.print(soft_wrap=True)
-        if player.skipping:
-            self.term.drain_input()
+        with self.term.skippable():
+            for line in lines:
+                self.term.print(MARGIN, end="", soft_wrap=True)
+                player.play(line)
+                self.term.print(soft_wrap=True)
 
     # -- entry point -------------------------------------------------------------------
 

@@ -249,6 +249,7 @@ All six milestones are done and deployed (2026-10-18).
 | 2026-10-19 | Timing & text effects | `[pause N]`, `[type]…[/type]`, `[glitch]…[/glitch]`; play on first draw, Enter skips, players can turn them off. |
 | 2026-10-19 | Typing speed levels | 1 (slowest) – 9 (fastest); game-wide default in Settings (with "type out all text"); `[type N]` per passage; players can override. |
 | 2026-10-19 | Changes in scene text | `{x = 1}`, `{hp -= 2}`, `{give("rope")}` anywhere in scene text, including inside `{if}`; applied once when the scene is read on arrival; the text as read is kept for redraws and saves. |
+| 2026-10-19 | Fix: skipping animations | Pressing Enter while text typed or glitched in broke the line (and left glitch symbols behind) on Linux/macOS and in the playtest, because the terminal echoed the key. Keys are now hidden while text animates, and any key skips. Player v1.3.1. |
 
 Decided against: conditional lines inside effect lists (`if …: x = 1`). Changes in
 scene text cover the same need in the way the author writes.
