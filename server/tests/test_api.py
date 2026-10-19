@@ -290,3 +290,12 @@ def test_language_reference(client):
     data = client.get("/api/reference").json()
     assert "has" in {f["name"] for f in data["functions"]}
     assert "red" in data["colors"]
+
+
+def test_check_markup_with_changes(client, game):
+    gid = game["id"]
+    r = client.post(f"/api/games/{gid}/check",
+                    json={"source": "Ouch.{gold -= 1}{goldd = 2}", "mode": "markup"}).json()
+    [error] = r["errors"]
+    assert error["message"] == "unknown variable 'goldd'"
+    assert "Ouch.{gold -= 1}{goldd = 2}"[error["start"]:error["end"]] == "goldd"

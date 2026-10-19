@@ -214,3 +214,41 @@ def test_invalid_effect_warning():
     [issue] = [i for i in validate(game) if i.code == "invalid_effect"]
     assert issue.severity == "warning"
     assert game.scenes[0].text[issue.start : issue.end] == "[pause soon]"
+
+
+def test_changes_in_text_are_checked():
+    game = make_game()
+    game.scenes[0].text = 'Hi.{goldd -= 1}{met_troll = 3}{give("sword")}'
+    issues = [i for i in validate(game) if i.scene == "start" and i.field == "text"]
+    messages = sorted(i.message for i in issues)
+    assert messages == [
+        "'met_troll' holds true/false, can't set it to a number",
+        "unknown item 'sword'",
+        "unknown variable 'goldd'",
+    ]
+    for issue in issues:
+        assert game.scenes[0].text[issue.start : issue.end] in ("goldd", "3", '"sword"')
+
+
+def test_changes_only_allowed_in_scene_text():
+    game = make_game()
+    game.scenes[0].choices[0].text = "Go {gold -= 1}"
+    game.settings.status_format = "HP {hp}{hp = 1}"
+    codes = [(i.code, i.field) for i in validate(game) if i.code == "change_outside_scene_text"]
+    assert sorted(codes) == [
+        ("change_outside_scene_text", "choice_text"),
+        ("change_outside_scene_text", "status_format"),
+    ]
+
+
+def test_variables_changed_in_text_count_as_used():
+    game = make_game(
+        variables=[
+            *make_game().model_dump()["variables"],
+            {"name": "initiative", "type": "number", "initial": 0},
+        ]
+    )
+    game.scenes[0].text = "Ready.{initiative = 1}"
+    codes = {(i.code, i.variable) for i in validate(game)}
+    assert ("unused_variable", "initiative") not in codes
+    assert ("write_only_variable", "initiative") in codes

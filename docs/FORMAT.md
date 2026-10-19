@@ -80,6 +80,10 @@ Number variables are clamped to their `min`/`max` after every change.
 
 - `{expr}` shows a value; `{if c}…{elif c}…{else}…{/if}` shows text conditionally.
   A block tag alone on its line removes the whole line.
+- `{x = 1}`, `{hp -= 2}`, `{give("rope")}` (any effect; several with `;`) change
+  values when the player reads that part of a scene, only in the branches shown.
+  Scene text only (not choice text, status bar or intro). Alone on a line, the tag
+  removes the line.
 - `**bold**`, `*italic*`, `[red]…[/red]` (or `[/]`), `[bold]`, `[italic]`,
   `[underline]`, `[dim]`, `[#rrggbb]`. Unknown `[words]` are plain text.
 - A line containing only `---` is a page break ("press Enter to continue").
@@ -97,5 +101,9 @@ Number variables are clamped to their `min`/`max` after every change.
 2. Rules are checked: a rule fires when its condition *becomes* true (it can
    fire again only after being false). It applies its effects and may `goto`.
 3. The target scene (or the rule's `goto`) is entered: its visit count goes up,
-   `on_enter` effects apply, rules are checked again.
-4. The scene renders with current values; available choices are listed.
+   `on_enter` effects apply, then its text is read top to bottom (resolving values
+   and conditions, and applying changes written in the text, in order); rules are
+   checked again.
+4. The scene shows the text as it was read (redraws and loaded saves keep it, so
+   changes in the text never apply twice); available choices are listed with
+   current values.

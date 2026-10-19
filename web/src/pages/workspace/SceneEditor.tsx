@@ -43,6 +43,7 @@ import {
   Menu,
   MenuContent,
   MenuItem,
+  MenuSeparator,
   MenuTrigger,
   Select,
   Textarea,
@@ -343,6 +344,20 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
                     {v.label || v.name} <span className="font-mono text-xs text-zinc-500">{v.name}</span>
                   </MenuItem>
                 ))}
+                {meta && meta.variables.length > 0 && (
+                  <>
+                    <MenuSeparator />
+                    <MenuItem
+                      onSelect={() => {
+                        const v = meta.variables[0]
+                        const change = v.type === 'number' ? `${v.name} -= 1` : v.type === 'bool' ? `${v.name} = true` : `${v.name} = ""`
+                        insert(`{${change}}`, change.length + 1)
+                      }}
+                    >
+                      Change a variable here…
+                    </MenuItem>
+                  </>
+                )}
               </MenuContent>
             </Menu>
             <ToolbarButton label="Conditional text: only shown when a condition is true" onClick={() => wrap('{if }', '{/if}', 'text')}>
@@ -384,7 +399,7 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
             prose
             value={scene.text}
             onChange={(text) => update({ text })}
-            placeholder="What happens here? Use {gold} to show a value, {if has(&quot;rope&quot;)}…{/if} for text that only sometimes appears."
+            placeholder="What happens here? {gold} shows a value, {if has(&quot;rope&quot;)}…{/if} shows text only sometimes, {gold -= 1} changes a value."
             minHeight="10rem"
             editorRef={(v) => (textView.current = v)}
           />

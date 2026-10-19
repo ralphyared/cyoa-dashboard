@@ -112,15 +112,16 @@ def iter_sources(game: Game) -> Iterator[Source]:
             yield Source(Loc("effects", **loc), choice.effects, "effects")
 
 
-def parse_source(source: Source) -> list[tuple[Node, int, bool]] | ExprError:
-    """Parse a source into ``(node, offset, is_condition)`` triples."""
+def parse_source(source: Source) -> list[tuple[Node, int, str]] | ExprError:
+    """Parse a source into ``(node, offset, mode)`` triples; mode is
+    ``"condition"``, ``"effects"`` or ``"value"``."""
     if not source.text.strip():
         return []
     try:
         if source.mode == "condition":
-            return [(parse_expression(source.text), 0, True)]
+            return [(parse_expression(source.text), 0, "condition")]
         if source.mode == "effects":
-            return [(parse_program(source.text), 0, False)]
+            return [(parse_program(source.text), 0, "effects")]
         nodes = markup.parse_template(source.text)
         return list(markup.template_expressions(nodes))
     except ExprError as e:
@@ -341,10 +342,21 @@ def validate(game: Game) -> list[Issue]:
         if isinstance(parsed, ExprError):
             add(loc.issue(E, "syntax", parsed.message, parsed.start, parsed.end))
             continue
-        for node, offset, is_condition in parsed:
-            if source.mode == "effects":
+        for node, offset, mode in parsed:
+            if mode == "effects":
+                if source.mode == "markup" and loc.field != "text":
+                    add(
+                        loc.issue(
+                            E,
+                            "change_outside_scene_text",
+                            "variables can only be changed in scene text (or in effects)",
+                            offset,
+                            offset + 1,
+                        )
+                    )
+                    continue
                 errors = check_program(node, env)  # type: ignore[arg-type]
-            elif is_condition:
+            elif mode == "condition":
                 errors = check_condition(node, env)  # type: ignore[arg-type]
             else:
                 errors = check_expression(node, env)[1]  # type: ignore[arg-type]

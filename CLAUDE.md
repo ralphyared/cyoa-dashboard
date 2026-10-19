@@ -28,10 +28,13 @@ CLI player, the server's validation/export, and the in-browser playtest all use 
 - `expr/` — expression language: `parser.py` (hand-written, errors carry char
   offsets), `checker.py` (types + `FUNCTIONS` registry), `evaluator.py`,
   `describe.py` (locked-choice hints), `rename.py` (span-based safe renames).
-- `markup.py` — scene text: stage 1 resolves `{expr}` / `{if}` (values are escaped),
+- `markup.py` — scene text: stage 1 resolves `{expr}` / `{if}` (values are escaped)
+  and `{x = 1}`-style changes (`TEffect`, applied via a `run` callback only on arrival),
   stage 2 styles `**bold**`, `*italic*`, `[color]…[/]`, `---` page breaks into
   neutral `StyledSpan`s. Standalone block tags swallow their line.
-- `runtime.py` — game state, choices, effects, edge-triggered rules, clamping,
+- `runtime.py` — game state, choices, effects, edge-triggered rules, clamping.
+  Entering a scene "reads" its text once (`read_scene`, applying text changes) and
+  freezes the result in `GameState.text` for redraws and saves;
   saves (with repair for changed games). Never raises on author mistakes: records
   them in `Runtime.problems`.
 - `validate.py` — all issues (errors block player export) + stats.

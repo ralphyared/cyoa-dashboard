@@ -51,6 +51,29 @@ You remember the way from last time.
         </p>
       </Section>
 
+      <Section title="Changing variables in the text">
+        <p>
+          Write a change inside <Code>{'{ }'}</Code> anywhere in a scene's text. It happens when the
+          player reads that part, and only if that part is shown, so it can live inside{' '}
+          <Code>{'{if}'}</Code>:
+        </p>
+        <Block>{`{if class == "warrior"}You unleash a primal cry. [red](-1 rage)[/red]
+{rage -= 1}
+{cavern_beast_initiative = 1}
+{else}You hold your breath and wait.
+{/if}
+
+{if not met_hermit}"Who goes there?" a voice croaks.{met_hermit = true}{/if}`}</Block>
+        <p>
+          Any effect works: <Code>{'{x = 1}'}</Code>, <Code>{'{hp -= 2}'}</Code>,{' '}
+          <Code>{'{give("rope")}'}</Code>, several at once with <Code>;</Code>. A change alone on its
+          line leaves no blank line. The scene is read once when the player arrives (after its
+          “when the player arrives” effects): redrawing it, or loading a save made there, shows the
+          same text without applying the changes again. Rules are checked right after. Changes
+          only work in scene text, not in choice text, the status bar or the intro.
+        </p>
+      </Section>
+
       <Section title="Timing & effects">
         <p>
           Make text arrive with a sense of time. Effects play when a scene first appears (not when
@@ -122,7 +145,10 @@ take("arrow")`}</Block>
         <ol className="list-decimal space-y-1 pl-5">
           <li>The player picks a choice: its effects apply.</li>
           <li>Rules are checked; a rule that just became true fires (and may send the player elsewhere).</li>
-          <li>The player enters the next scene: the visit counts, its arrival effects apply, rules are checked again.</li>
+          <li>
+            The player enters the next scene: the visit counts, its arrival effects apply, its text is
+            read (applying any changes written in it), and rules are checked again.
+          </li>
           <li>The scene's text is shown (with the current values), then the available choices.</li>
         </ol>
         <p>

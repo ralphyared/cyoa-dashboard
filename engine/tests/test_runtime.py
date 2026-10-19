@@ -228,3 +228,80 @@ def test_choice_text_interpolation():
     state = rt.new_game()
     shop = next(v for v in rt.choices(state) if v.id == "shop")
     assert shop.plain_text == "Buy rope (5 gold left)"
+
+
+# -- changes written in scene text -----------------------------------------------------
+
+
+def text_game(text: str, **overrides):
+    game = make_game(**overrides)
+    game.scenes[1].text = text  # the bridge
+    game.scenes[1].on_enter = ""
+    return game
+
+
+def test_text_changes_apply_once_on_arrival():
+    game = text_game("{if gold >= 5}You pay.{gold -= 5}{else}You can't pay.{/if} Gold: {gold}.")
+    rt = Runtime(game)
+    state = rt.new_game()
+    rt.choose(state, "bridge")
+    assert state.vars["gold"] == 0
+    assert plain(rt.view(state).pages) == "You pay. Gold: 0."
+    # redraws show the text as read and don't apply the change again
+    assert plain(rt.view(state).pages) == "You pay. Gold: 0."
+    assert state.vars["gold"] == 0
+
+
+def test_first_visit_greeting_survives_redraws_and_saves():
+    game = text_game("{if not met_troll}Hello, stranger.{met_troll = true}{else}You again.{/if}")
+    rt = Runtime(game)
+    state = rt.new_game()
+    rt.choose(state, "bridge")
+    assert state.vars["met_troll"] is True
+    assert plain(rt.view(state).pages) == "Hello, stranger."
+    restored, _ = rt.restore_save(rt.make_save(state))
+    assert plain(rt.view(restored).pages) == "Hello, stranger."
+    # re-rendered (playtest reload) it shows the current values instead
+    fresh, _ = rt.restore_save(rt.make_save(state), keep_text=False)
+    assert plain(rt.view(fresh).pages) == "You again."
+    # coming back later reads the scene again
+    rt.choose(state, "back")
+    rt.choose(state, "bridge")
+    assert plain(rt.view(state).pages) == "You again."
+
+
+def test_text_changes_can_trigger_rules():
+    game = text_game("The troll hits you.{hp -= 50}")
+    rt = Runtime(game)
+    state = rt.new_game()
+    rt.choose(state, "bridge")
+    assert state.scene == "dead"
+    assert state.vars["hp"] == 0
+
+
+def test_text_changes_happen_after_arrival_effects_and_items_work():
+    game = text_game('{if has("rope")}You coil your rope.{take("rope")}{give("arrow", 2)}{/if}')
+    game.scenes[1].on_enter = 'give("rope")'
+    rt = Runtime(game)
+    state = rt.new_game()
+    rt.choose(state, "bridge")
+    assert state.inventory == {"arrow": 2}
+    assert plain(rt.view(state).pages) == "You coil your rope."
+
+
+def test_broken_text_change_is_reported_not_fatal():
+    game = text_game("Ouch.{gold -= 1 / 0} Still here.")
+    rt = Runtime(game)
+    state = rt.new_game()
+    rt.choose(state, "bridge")
+    assert plain(rt.view(state).pages) == "Ouch. Still here."
+    assert any("division by zero" in p for p in rt.problems)
+
+
+def test_debug_changes_rerender_the_text():
+    game = text_game("Gold: {gold}.")
+    rt = Runtime(game)
+    state = rt.new_game()
+    rt.choose(state, "bridge")
+    rt.debug_set(state, "gold", 42)
+    assert plain(rt.view(state).pages) == "Gold: 42."

@@ -8,7 +8,7 @@ can show it.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from datetime import UTC, datetime
 from typing import Any
 
@@ -48,6 +48,11 @@ class GameState:
     used_choices: set[str] = field(default_factory=set)
     active_rules: set[str] = field(default_factory=set)
     steps: int = 0
+    # The current scene's text as the player read it on arrival (pages of span
+    # dicts), so redraws and loaded saves show the same text without re-applying
+    # changes made in the text.
+    text: list[list[dict[str, Any]]] | None = None
+    text_scene: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -58,6 +63,8 @@ class GameState:
             "used_choices": sorted(self.used_choices),
             "active_rules": sorted(self.active_rules),
             "steps": self.steps,
+            "text": self.text,
+            "text_scene": self.text_scene,
         }
 
     @classmethod
@@ -70,6 +77,8 @@ class GameState:
             used_choices=set(data.get("used_choices", [])),
             active_rules=set(data.get("active_rules", [])),
             steps=int(data.get("steps", 0)),
+            text=data.get("text") if isinstance(data.get("text"), list) else None,
+            text_scene=data.get("text_scene") if isinstance(data.get("text_scene"), str) else None,
         )
 
     def copy(self) -> GameState:
@@ -271,6 +280,10 @@ class Runtime:
             self.clamp(state, name)
 
     def render_text(self, state: GameState, src: str, where: str) -> list[Page]:
+        """Render markup with the current values. Changes written in it are skipped."""
+        return self._render(state, src, where, apply_changes=False)
+
+    def _render(self, state: GameState, src: str, where: str, *, apply_changes: bool) -> list[Page]:
         if not src.strip():
             return []
         template = self._template(src)
@@ -286,7 +299,40 @@ class Runtime:
                 self.problems.append(f"{where}: {e}")
                 return "?"
 
-        return markup.style(markup.resolve_template(template, ev))
+        def run(program: Program) -> None:
+            for statement in program.statements:
+                try:
+                    execute(Program((statement,)), ctx)
+                except EvalError as e:
+                    self.problems.append(f"{where}: {e}")
+            self.clamp_all(state)
+
+        resolved = markup.resolve_template(template, ev, run if apply_changes else None)
+        return markup.style(resolved)
+
+    def read_scene(self, state: GameState, scene: Scene) -> None:
+        """The player reads the scene on arrival: changes in its text apply in reading
+        order (only in the parts shown), and the text is kept as read."""
+        pages = self._render(state, scene.text, f"scene '{scene.id}' text", apply_changes=True)
+        state.text = [[asdict(span) for span in page] for page in pages]
+        state.text_scene = scene.id
+
+    def _text_as_read(self, state: GameState, scene: Scene) -> list[Page] | None:
+        if state.text is None or state.text_scene != scene.id:
+            return None
+        allowed = {f.name for f in fields(StyledSpan)}
+        try:
+            return [
+                [StyledSpan(**{k: v for k, v in span.items() if k in allowed}) for span in page]
+                for page in state.text
+            ]
+        except (TypeError, AttributeError):
+            return None
+
+    def forget_text(self, state: GameState) -> None:
+        """Re-render the scene text from the current values next time it's shown."""
+        state.text = None
+        state.text_scene = None
 
     def render_line(self, state: GameState, src: str, where: str) -> list[StyledSpan]:
         """Render markup that must fit on one line (choice text, status bar)."""
@@ -328,6 +374,7 @@ class Runtime:
         state.scene = scene_id
         state.visits[scene_id] = state.visits.get(scene_id, 0) + 1
         self.run_effects(state, scene.on_enter, f"scene '{scene_id}' on-enter effects")
+        self.read_scene(state, scene)
         target = self.check_rules(state)
         if target is not None:
             self.enter(state, target, _depth + 1)
@@ -413,7 +460,8 @@ class Runtime:
             title=scene.title,
             chapter_title=chapter.title if chapter else "",
             art=scene.art,
-            pages=self.render_text(state, scene.text, f"scene '{scene.id}' text"),
+            pages=self._text_as_read(state, scene)
+            or self.render_text(state, scene.text, f"scene '{scene.id}' text"),
             status=status,
             choices=self.choices(state),
             ending=scene.ending,
@@ -445,9 +493,11 @@ class Runtime:
         return raw
 
     def debug_set(self, state: GameState, name: str, value: Value) -> None:
+        self.forget_text(state)
         _Ctx(self, state).set_var(name, value)
 
     def debug_items(self, state: GameState, item: str, amount: int) -> None:
+        self.forget_text(state)
         ctx = _Ctx(self, state)
         try:
             if amount >= 0:
@@ -474,8 +524,13 @@ class Runtime:
             "state": state.to_dict(),
         }
 
-    def restore_save(self, data: dict[str, Any]) -> tuple[GameState, list[str]]:
-        """Load a save, repairing anything the current game version no longer has."""
+    def restore_save(
+        self, data: dict[str, Any], *, keep_text: bool = True
+    ) -> tuple[GameState, list[str]]:
+        """Load a save, repairing anything the current game version no longer has.
+
+        ``keep_text=False`` re-renders the scene text from the saved values instead of
+        showing it as the player read it (used when playtesting edited text)."""
         warnings: list[str] = []
         if data.get("game_id") not in (None, self.game.id):
             raise GameError("this save belongs to a different game")
@@ -503,7 +558,10 @@ class Runtime:
                 "(your stats and items are kept)."
             )
             state.scene = self.game.start_scene
+            keep_text = False
             if state.scene not in self.scenes:
                 raise GameError("the game has no valid start scene")
+        if not keep_text:
+            self.forget_text(state)
         self.clamp_all(state)
         return state, warnings

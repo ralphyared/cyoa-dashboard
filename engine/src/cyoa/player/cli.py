@@ -129,7 +129,8 @@ def _starting_state(game: Game, args: argparse.Namespace) -> GameState | None:
     rt = Runtime(game)
     if args.state:
         data = json.loads(Path(args.state).read_text(encoding="utf-8"))
-        state, _ = rt.restore_save({"state": data})
+        # Playtest restarts (reload, edited values) should show the latest text.
+        state, _ = rt.restore_save({"state": data}, keep_text=False)
     else:
         state = rt.initial_state()
     if args.start:

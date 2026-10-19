@@ -20,11 +20,15 @@ from dataclasses import dataclass, field
 from .expr import (
     Expr,
     ExprError,
+    Program,
     RefKind,
     format_value,
     parse_expression,
+    parse_program,
+    tokenize,
 )
-from .expr.nodes import Value
+from .expr.nodes import Node, Value
+from .expr.parser import ASSIGN_OPS
 from .expr.rename import apply_renames, reference_spans
 from .typing_speed import TYPING_CPS
 
@@ -43,6 +47,14 @@ class TInterp:
 
 
 @dataclass(slots=True)
+class TEffect:
+    """``{gold -= 1}``: changes applied when the player reads this part of the text."""
+
+    program: Program
+    offset: int
+
+
+@dataclass(slots=True)
 class TBranch:
     condition: Expr | None  # None for {else}
     offset: int
@@ -54,19 +66,19 @@ class TIf:
     branches: list[TBranch]
 
 
-TNode = TText | TInterp | TIf
+TNode = TText | TInterp | TEffect | TIf
 
 
 @dataclass(frozen=True, slots=True)
 class _Tag:
-    kind: str  # "if", "elif", "else", "endif", "value"
+    kind: str  # "if", "elif", "else", "endif", "value", "effect"
     payload: str
     payload_offset: int
     start: int
     end: int
 
 
-_BLOCK_KINDS = {"if", "elif", "else", "endif"}
+_BLOCK_KINDS = {"if", "elif", "else", "endif", "effect"}
 _IF_RE = re.compile(r"^(\s*)(if|elif)\b(.*)$", re.DOTALL)
 _WRONG_CLOSERS = {"endif", "end", "/", "end if", "fi"}
 
@@ -111,7 +123,27 @@ def _classify(content: str, offset: int, start: int, end: int) -> _Tag:
         return _Tag("endif", "", offset, start, end)
     if lowered in _WRONG_CLOSERS:
         raise ExprError("close conditional text with {/if}", start, end)
+    if _is_effect(content):
+        return _Tag("effect", content, offset, start, end)
     return _Tag("value", content, offset, start, end)
+
+
+def _is_effect(content: str) -> bool:
+    """``{x = 1}``, ``{hp -= 2}``, ``{give("rope")}``: a change, not a value to show."""
+    try:
+        tokens = tokenize(content, newlines=False)
+    except ExprError:
+        return False
+    depth = 0
+    for tok in tokens:
+        if tok.kind == "OP" and tok.value == "(":
+            depth += 1
+        elif tok.kind == "OP" and tok.value == ")":
+            depth -= 1
+        elif depth == 0 and tok.kind == "OP" and tok.value in (*ASSIGN_OPS, ";"):
+            return True
+    first = tokens[0]
+    return first.kind == "NAME" and first.value in ("give", "take")
 
 
 def _scan(text: str) -> list[tuple[str, int, int] | _Tag]:
@@ -169,6 +201,13 @@ def _parse_payload(tag: _Tag) -> Expr:
         raise e.shift(tag.payload_offset) from None
 
 
+def _parse_effect(tag: _Tag) -> Program:
+    try:
+        return parse_program(tag.payload)
+    except ExprError as e:
+        raise e.shift(tag.payload_offset) from None
+
+
 def parse_template(text: str) -> list[TNode]:
     """Parse scene text. Raises :class:`ExprError` with offsets into ``text``."""
     root: list[TNode] = []
@@ -184,6 +223,8 @@ def parse_template(text: str) -> list[TNode]:
         tag = piece
         if tag.kind == "value":
             body().append(TInterp(_parse_payload(tag), tag.payload_offset))
+        elif tag.kind == "effect":
+            body().append(TEffect(_parse_effect(tag), tag.payload_offset))
         elif tag.kind == "if":
             node = TIf([TBranch(_parse_payload(tag), tag.payload_offset)])
             body().append(node)
@@ -206,15 +247,20 @@ def parse_template(text: str) -> list[TNode]:
     return root
 
 
-def template_expressions(nodes: list[TNode]) -> Iterator[tuple[Expr, int, bool]]:
-    """Yield ``(expr, offset, is_condition)`` for every expression in a template."""
+def template_expressions(nodes: list[TNode]) -> Iterator[tuple[Node, int, str]]:
+    """Yield ``(node, offset, mode)`` for everything evaluated in a template.
+
+    ``mode`` is ``"value"`` (shown), ``"condition"`` ({if}) or ``"effects"`` (a change).
+    """
     for node in nodes:
         if isinstance(node, TInterp):
-            yield node.expr, node.offset, False
+            yield node.expr, node.offset, "value"
+        elif isinstance(node, TEffect):
+            yield node.program, node.offset, "effects"
         elif isinstance(node, TIf):
             for branch in node.branches:
                 if branch.condition is not None:
-                    yield branch.condition, branch.offset, True
+                    yield branch.condition, branch.offset, "condition"
                 yield from template_expressions(branch.body)
 
 
@@ -227,24 +273,30 @@ def escape(text: str) -> str:
 
 
 Evaluate = Callable[[Expr], Value]
+Run = Callable[[Program], None]
 
 
-def resolve_template(nodes: list[TNode], evaluate: Evaluate) -> str:
+def resolve_template(nodes: list[TNode], evaluate: Evaluate, run: Run | None = None) -> str:
+    """Resolve values and conditional text. Changes in the text are applied with
+    ``run`` as they're reached (only in the branches shown); without it they're skipped."""
     out: list[str] = []
-    _resolve(nodes, evaluate, out)
+    _resolve(nodes, evaluate, run, out)
     return "".join(out)
 
 
-def _resolve(nodes: list[TNode], evaluate: Evaluate, out: list[str]) -> None:
+def _resolve(nodes: list[TNode], evaluate: Evaluate, run: Run | None, out: list[str]) -> None:
     for node in nodes:
         if isinstance(node, TText):
             out.append(node.text)
         elif isinstance(node, TInterp):
             out.append(escape(format_value(evaluate(node.expr))))
+        elif isinstance(node, TEffect):
+            if run is not None:
+                run(node.program)
         else:
             for branch in node.branches:
                 if branch.condition is None or evaluate(branch.condition) is True:
-                    _resolve(branch.body, evaluate, out)
+                    _resolve(branch.body, evaluate, run, out)
                     break
 
 

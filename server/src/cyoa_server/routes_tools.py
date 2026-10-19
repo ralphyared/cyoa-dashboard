@@ -78,10 +78,13 @@ def check(game_id: str, body: CheckBody, db: DB) -> dict[str, Any]:
         else:
             nodes = markup.parse_template(body.source)
             errors = []
-            for expr, offset, is_condition in markup.template_expressions(nodes):
-                found = (
-                    check_condition(expr, env) if is_condition else check_expression(expr, env)[1]
-                )
+            for node, offset, mode in markup.template_expressions(nodes):
+                if mode == "effects":
+                    found = check_program(node, env)  # type: ignore[arg-type]
+                elif mode == "condition":
+                    found = check_condition(node, env)  # type: ignore[arg-type]
+                else:
+                    found = check_expression(node, env)[1]  # type: ignore[arg-type]
                 errors += [_err(e.shift(offset)) for e in found]
             result["errors"] = errors
     except ExprError as e:

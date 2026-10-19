@@ -116,9 +116,9 @@ def test_error_offsets_point_into_scene_text():
 
 
 def test_template_expressions_offsets():
-    text = "a {gold} b {if hp > 1}c{/if}"
-    found = [(text[o : o + 4], cond) for _, o, cond in template_expressions(parse_template(text))]
-    assert found == [("gold", False), (" hp ", True)]
+    text = "a {gold} b {if hp > 1}c{hp -= 1}{/if}"
+    found = [(text[o : o + 4], mode) for _, o, mode in template_expressions(parse_template(text))]
+    assert found == [("gold", "value"), (" hp ", "condition"), ("hp -", "effects")]
 
 
 def test_variable_named_like_keyword_prefix():
@@ -270,3 +270,91 @@ def test_effect_closing_tags_are_known():
 def test_type_speed_levels():
     [page] = style("[type 1]a[/type][type 9]b[/type][type fast]c[/type]")
     assert [(s.text, s.effect) for s in page] == [("a", "type_1"), ("b", "type_9"), ("c", "type_8")]
+
+
+# -- changes written in text -------------------------------------------------------------
+
+
+class Changes(Ctx):
+    def set_var(self, name, value):
+        self.vars[name] = value
+
+    def give(self, item, amount):
+        self.vars.setdefault("given", []).append((item, amount))
+
+    def take(self, item, amount):
+        pass
+
+
+def read(text: str, ctx: Changes) -> str:
+    from cyoa.expr.evaluator import execute
+
+    return resolve_template(
+        parse_template(text), lambda e: evaluate(e, ctx), lambda program: execute(program, ctx)
+    )
+
+
+@pytest.mark.parametrize(
+    "tag",
+    [
+        "{x = 1}",
+        "{x=1}",
+        "{hp -= 2}",
+        "{x *= 2}",
+        '{give("rope")}',
+        '{take("rope", 2)}',
+        "{x = 1; y = 2}",
+        "{flag = hp > 3}",
+    ],
+)
+def test_change_tags_are_recognized(tag):
+    [node] = parse_template(tag)
+    assert type(node).__name__ == "TEffect"
+
+
+@pytest.mark.parametrize("tag", ["{x}", "{x == 1}", "{has('rope')}", "{min(x, 2)}"])
+def test_value_tags_stay_values(tag):
+    [node] = parse_template(tag)
+    assert type(node).__name__ == "TInterp"
+
+
+def test_changes_apply_only_in_the_branch_shown():
+    text = "{if cls == 'warrior'}Roar!{rage -= 1}{init = 1}{else}Hm.{calm = true}{/if}"
+    warrior = Changes(cls="warrior", rage=3, init=0, calm=False)
+    assert read(text, warrior) == "Roar!"
+    assert warrior.vars["rage"] == 2 and warrior.vars["init"] == 1 and warrior.vars["calm"] is False
+    mage = Changes(cls="mage", rage=3, init=0, calm=False)
+    assert read(text, mage) == "Hm."
+    assert mage.vars["rage"] == 3 and mage.vars["calm"] is True
+
+
+def test_changes_apply_in_reading_order():
+    ctx = Changes(gold=5)
+    assert read("Before: {gold}. {gold -= 2}After: {gold}.", ctx) == "Before: 5. After: 3."
+
+
+def test_change_alone_on_a_line_leaves_no_blank_line():
+    ctx = Changes(init=0)
+    text = "The beast lunges.\n{init = 1}\n\nNext paragraph."
+    assert read(text, ctx) == "The beast lunges.\n\nNext paragraph."
+    assert ctx.vars["init"] == 1
+
+
+def test_changes_are_skipped_when_just_showing():
+    ctx = Changes(gold=5)
+    out = resolve_template(parse_template("{gold -= 2}{gold}"), lambda e: evaluate(e, ctx))
+    assert out == "5"
+
+
+def test_change_syntax_errors_point_into_the_text():
+    text = "Hi {gold -= } there"
+    with pytest.raises(ExprError) as info:
+        parse_template(text)
+    assert info.value.start >= text.index("{")
+
+
+def test_rename_inside_changes():
+    text = "{gold -= 1}{if gold > 1}rich{/if}"
+    assert rename_in_markup(text, RefKind.VARIABLE, "gold", "coins") == (
+        "{coins -= 1}{if coins > 1}rich{/if}"
+    )
