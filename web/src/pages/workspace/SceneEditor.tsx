@@ -52,8 +52,8 @@ import {
 } from '@/components/ui'
 import { slugError } from '@/lib/format'
 import { useGame, useGameActions, useIssues, useMeta, useSaver, useSaveState, useScene } from '@/lib/queries'
-import type { Choice, EndingKind, GameDetail, Scene } from '@/lib/types'
-import { IssueList } from '@/components/IssueList'
+import type { Choice, EndingKind, GameDetail, Issue, Scene } from '@/lib/types'
+import { HiddenIssues, IssueList } from '@/components/IssueList'
 import { ChoiceCard, newChoice } from './ChoiceCard'
 import { useWorkspace } from './context'
 import { HistoryDialog } from './HistoryDialog'
@@ -93,7 +93,8 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
   const meta = useMeta(gameId)
   const saver = useSaver()
   const saveState = useSaveState(`scene:${scene.pk}`)
-  const issues = useIssues(gameId).data?.issues
+  const issuesData = useIssues(gameId).data
+  const issues = issuesData?.issues
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const textView = useRef<EditorView | null>(null)
@@ -138,6 +139,8 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
   const sceneIssues = (issues ?? []).filter((i) => i.scene === scene.id)
   const generalIssues = sceneIssues.filter((i) => !i.choice)
   const choiceIssues = (choiceId: string) => sceneIssues.filter((i) => i.choice === choiceId)
+  const hiddenIssues = (issuesData?.hidden ?? []).filter((i) => i.scene === scene.id)
+  const hideIssue = (issue: Issue) => actions.setWarningHidden(issue, true)
 
   const setChoices = (choices: Choice[]) => update({ choices })
   const sensors = useSensors(
@@ -301,7 +304,10 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
           </div>
         )}
 
-        {generalIssues.length > 0 && <IssueList issues={generalIssues} />}
+        {generalIssues.length > 0 && <IssueList issues={generalIssues} onHide={hideIssue} />}
+        {hiddenIssues.length > 0 && (
+          <HiddenIssues issues={hiddenIssues} onShow={(issue) => actions.setWarningHidden(issue, false)} />
+        )}
 
         {/* text */}
         <section className="flex flex-col gap-1.5">
@@ -443,6 +449,7 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
                     index={i}
                     choice={choice}
                     issues={choiceIssues(choice.id)}
+                    onHideIssue={hideIssue}
                     focused={focusChoice === choice.id}
                     onChange={(c) => setChoices(scene.choices.map((x) => (x.id === choice.id ? c : x)))}
                     onDelete={() => setChoices(scene.choices.filter((x) => x.id !== choice.id))}

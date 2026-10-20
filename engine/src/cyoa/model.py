@@ -106,6 +106,7 @@ class Scene(_Model):
     # Author-only fields: kept in project exports, stripped from player exports.
     notes: str = ""
     position: tuple[float, float] | None = None
+    hidden_warnings: list[str] = Field(default_factory=list)  # Issue.key values
 
 
 class Settings(_Model):
@@ -160,11 +161,13 @@ class Game(_Model):
         return next((s for s in self.scenes if s.id == scene_id), None)
 
     def to_player_dict(self) -> dict[str, Any]:
-        """The game as shipped to players: author notes and graph positions removed."""
+        """The game as shipped to players: author notes, graph positions and hidden
+        warnings removed."""
         data = self.model_dump(mode="json")
         for scene in data["scenes"]:
             scene.pop("notes", None)
             scene.pop("position", None)
+            scene.pop("hidden_warnings", None)
         return data
 
     def to_project_dict(self) -> dict[str, Any]:

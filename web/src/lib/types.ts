@@ -88,6 +88,8 @@ export interface SceneFields {
   tags: string[]
   notes: string
   position: [number, number] | null
+  /** Keys of warnings the author has hidden (missing on scenes saved before this existed). */
+  hidden_warnings?: string[]
 }
 
 export interface Scene extends SceneFields {
@@ -132,6 +134,9 @@ export interface Issue {
   field?: string
   start?: number
   end?: number
+  /** Scene warnings only: identifies the warning for hiding it. */
+  key?: string
+  hidden?: boolean
 }
 
 export interface ChapterStats {
@@ -148,6 +153,11 @@ export interface Stats extends ChapterStats {
 export interface IssuesResponse {
   issues: Issue[]
   stats: Stats
+}
+
+/** What useIssues gives: hidden warnings are split off so nothing else counts them. */
+export interface IssuesData extends IssuesResponse {
+  hidden: Issue[]
 }
 
 export type CheckMode = 'condition' | 'effects' | 'markup' | 'value'

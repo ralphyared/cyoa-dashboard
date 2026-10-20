@@ -55,7 +55,8 @@ The same format with author-only fields included is the *project backup*.
       "ending": null,                // or { "kind": "death" | "victory" | "neutral", "title": "…" }
       "tags": [],
       "notes": "",                   // project backups only
-      "position": [0, 0]             // project backups only (graph layout)
+      "position": [0, 0],            // project backups only (graph layout)
+      "hidden_warnings": []          // project backups only (warnings the author hid)
     }
   ]
 }

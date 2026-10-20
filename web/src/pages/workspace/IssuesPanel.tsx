@@ -1,10 +1,10 @@
-import { AlertTriangle, CircleAlert, PartyPopper, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { AlertTriangle, ChevronRight, CircleAlert, Eye, EyeOff, PartyPopper, X } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { Button, Empty, Segmented, Spinner, cx } from '@/components/ui'
 import { plural } from '@/lib/format'
-import { useIssues, useScenes } from '@/lib/queries'
-import type { Issue } from '@/lib/types'
+import { useGameActions, useIssues, useScenes } from '@/lib/queries'
+import type { Issue, Scene } from '@/lib/types'
 import { useWorkspace } from './context'
 import { issueLink } from './Workspace'
 
@@ -42,13 +42,15 @@ export function IssuesPanel({ onClose }: { onClose: () => void }) {
   const { gameId } = useWorkspace()
   const issues = useIssues(gameId)
   const scenes = useScenes(gameId)
-  const navigate = useNavigate()
+  const actions = useGameActions(gameId)
   const [filter, setFilter] = useState<'all' | 'error' | 'warning'>('all')
+  const [showHidden, setShowHidden] = useState(false)
   const list = useMemo(
     () => (issues.data?.issues ?? []).filter((i) => filter === 'all' || i.severity === filter),
     [issues.data, filter],
   )
   const stats = issues.data?.stats
+  const hidden = filter === 'error' ? [] : (issues.data?.hidden ?? [])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -82,39 +84,98 @@ export function IssuesPanel({ onClose }: { onClose: () => void }) {
           </Empty>
         )}
         <ul className="flex flex-col gap-0.5">
-          {list.map((issue, i) => {
-            const link = issueLink(issue, gameId, scenes)
-            return (
-              <li key={i}>
-                <button
-                  type="button"
-                  disabled={!link}
-                  onClick={() => {
-                    if (!link) return
-                    const params = new URLSearchParams()
-                    if (issue.choice) params.set('choice', issue.choice)
-                    if (issue.field) params.set('field', issue.field)
-                    navigate(params.size ? `${link}?${params}` : link)
-                  }}
-                  className="flex w-full gap-2 rounded px-2 py-1.5 text-left hover:bg-surface-800 disabled:cursor-default disabled:hover:bg-transparent"
+          {list.map((issue, i) => (
+            <IssueRow key={i} issue={issue} gameId={gameId} scenes={scenes}>
+              {issue.key && (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="mt-1 shrink-0 text-zinc-400"
+                  icon={<EyeOff className="size-3.5" />}
+                  title="I've checked this: hide the warning (it comes back if this changes)"
+                  onClick={() => actions.setWarningHidden(issue, true)}
                 >
-                  {issue.severity === 'error' ? (
-                    <CircleAlert className="mt-0.5 size-3.5 shrink-0 text-red-400" />
-                  ) : (
-                    <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
-                  )}
-                  <div className="min-w-0">
-                    <div className={cx('text-sm', issue.severity === 'error' ? 'text-zinc-100' : 'text-zinc-300')}>
-                      {issue.message}
-                    </div>
-                    <div className="text-xs text-zinc-500">{issueTitle(issue)}</div>
-                  </div>
-                </button>
-              </li>
-            )
-          })}
+                  Hide
+                </Button>
+              )}
+            </IssueRow>
+          ))}
         </ul>
+        {hidden.length > 0 && (
+          <div className="mt-3 border-t border-surface-700 pt-2">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-500 hover:text-zinc-300"
+              aria-expanded={showHidden}
+              onClick={() => setShowHidden(!showHidden)}
+            >
+              <ChevronRight className={cx('size-3.5 transition-transform', showHidden && 'rotate-90')} />
+              <EyeOff className="size-3.5" /> Hidden ({hidden.length})
+            </button>
+            {showHidden && (
+              <ul className="flex flex-col gap-0.5 opacity-75">
+                {hidden.map((issue, i) => (
+                  <IssueRow key={i} issue={issue} gameId={gameId} scenes={scenes}>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      className="mt-1 shrink-0 text-zinc-400"
+                      icon={<Eye className="size-3.5" />}
+                      onClick={() => actions.setWarningHidden(issue, false)}
+                    >
+                      Show again
+                    </Button>
+                  </IssueRow>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+function IssueRow({
+  issue,
+  gameId,
+  scenes,
+  children,
+}: {
+  issue: Issue
+  gameId: string
+  scenes: Scene[]
+  children?: ReactNode
+}) {
+  const navigate = useNavigate()
+  const link = issueLink(issue, gameId, scenes)
+  return (
+    <li className="flex items-start gap-1">
+      <button
+        type="button"
+        disabled={!link}
+        onClick={() => {
+          if (!link) return
+          const params = new URLSearchParams()
+          if (issue.choice) params.set('choice', issue.choice)
+          if (issue.field) params.set('field', issue.field)
+          navigate(params.size ? `${link}?${params}` : link)
+        }}
+        className="flex min-w-0 flex-1 gap-2 rounded px-2 py-1.5 text-left hover:bg-surface-800 disabled:cursor-default disabled:hover:bg-transparent"
+      >
+        {issue.severity === 'error' ? (
+          <CircleAlert className="mt-0.5 size-3.5 shrink-0 text-red-400" />
+        ) : (
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
+        )}
+        <div className="min-w-0">
+          <div className={cx('text-sm', issue.severity === 'error' ? 'text-zinc-100' : 'text-zinc-300')}>
+            {issue.message}
+          </div>
+          <div className="text-xs text-zinc-500">{issueTitle(issue)}</div>
+        </div>
+      </button>
+      {children}
+    </li>
   )
 }

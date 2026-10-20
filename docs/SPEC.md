@@ -86,6 +86,7 @@ Scene
   notes         private author notes (never exported)
   tags          for filtering
   position      graph coordinates
+  hidden_warnings  warnings the author checked and hid (never exported to players)
 
 Choice
   text          "Pay the toll"
@@ -250,6 +251,7 @@ All six milestones are done and deployed (2026-10-18).
 | 2026-10-19 | Typing speed levels | 1 (slowest) – 9 (fastest); game-wide default in Settings (with "type out all text"); `[type N]` per passage; players can override. |
 | 2026-10-19 | Changes in scene text | `{x = 1}`, `{hp -= 2}`, `{give("rope")}` anywhere in scene text, including inside `{if}`; applied once when the scene is read on arrival; the text as read is kept for redraws and saves. |
 | 2026-10-19 | Fix: skipping animations | Pressing Enter while text typed or glitched in broke the line (and left glitch symbols behind) on Linux/macOS and in the playtest, because the terminal echoed the key. Keys are now hidden while text animates, and any key skips. Player v1.3.1. |
+| 2026-10-20 | Smarter dead-end warning, hiding warnings | "Every choice has a condition" only warns when the conditions could all be false at once (opposites like `x` / `not x` or `gold >= 3` / `gold < 3` count as covered; choices that can only be picked once don't count). Any scene warning can be hidden ("Hide" in the scene or Problems panel); hidden ones are listed under "Hidden" in Problems and come back when what they're about changes. |
 
 Decided against: conditional lines inside effect lists (`if …: x = 1`). Changes in
 scene text cover the same need in the way the author writes.

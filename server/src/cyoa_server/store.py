@@ -42,6 +42,7 @@ SCENE_FIELDS = (
     "tags",
     "notes",
     "position",
+    "hidden_warnings",
 )
 REVISION_WINDOW = timedelta(minutes=10)
 MAX_REVISIONS = 200

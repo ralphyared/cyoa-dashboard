@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from 'react'
 import { api } from './api'
 import type { SaveManager, SaveState, SaveStatus } from './save'
-import type { GameDetail, Meta, Scene, SceneFields } from './types'
+import type { GameDetail, Issue, IssuesData, IssuesResponse, Meta, Scene, SceneFields } from './types'
 
 export const gameKey = (gameId: string) => ['game', gameId] as const
 export const issuesKey = (gameId: string) => ['issues', gameId] as const
@@ -42,7 +42,11 @@ export function useScene(gameId: string, pk: number | null): Scene | undefined {
 }
 
 export function useIssues(gameId: string) {
-  return useQuery({ queryKey: issuesKey(gameId), queryFn: () => api.issues(gameId) })
+  return useQuery({ queryKey: issuesKey(gameId), queryFn: () => api.issues(gameId), select: splitHidden })
+}
+
+function splitHidden(data: IssuesResponse): IssuesData {
+  return { ...data, issues: data.issues.filter((i) => !i.hidden), hidden: data.issues.filter((i) => i.hidden) }
 }
 
 export function useReference() {
@@ -86,6 +90,22 @@ export function useGameActions(gameId: string) {
     return {
       updateScene: (pk: number, changes: Partial<SceneFields>) => saver.updateScene(pk, changes),
       updateMeta: (changes: Partial<Meta>) => saver.updateMeta(changes),
+
+      /** Hide a scene warning the author has checked, or show it again. */
+      setWarningHidden(issue: Issue, hidden: boolean) {
+        const scene = qc.getQueryData<GameDetail>(gameKey(gameId))?.scenes.find((s) => s.id === issue.scene)
+        const issues = qc.getQueryData<IssuesResponse>(issuesKey(gameId))
+        if (!scene || !issue.key || !issues) return
+        const sameWarning = (i: Issue) => i.scene === issue.scene && i.key === issue.key
+        // Keep only keys that still match a warning, so outdated ones drop out.
+        const keys = new Set(issues.issues.filter((i) => i.scene === scene.id && i.hidden && i.key).map((i) => i.key!))
+        if (hidden) keys.add(issue.key)
+        else keys.delete(issue.key)
+        qc.setQueryData<IssuesResponse>(issuesKey(gameId), (data) =>
+          data && { ...data, issues: data.issues.map((i) => (sameWarning(i) ? { ...i, hidden } : i)) },
+        )
+        saver.updateScene(scene.pk, { hidden_warnings: [...keys] })
+      },
 
       async createScene(fields: Partial<SceneFields> & { id?: string }): Promise<Scene> {
         const scene = await api.createScene(gameId, fields)

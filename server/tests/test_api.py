@@ -159,6 +159,26 @@ def test_issues_and_stats(client, game):
     assert "missing_target" in codes
 
 
+def test_hide_a_scene_warning(client, game):
+    gid = game["id"]
+    bridge = scene(game, "the_bridge")
+    url = f"/api/games/{gid}/scenes/{bridge['pk']}"
+    client.patch(
+        url, json={"choices": [{"text": "Jump", "target": "end", "condition": "gold > 3"}]}
+    )
+    [warning] = client.get(f"/api/games/{gid}/issues").json()["issues"]
+    assert warning["code"] == "possible_softlock"
+    assert "hidden" not in warning
+
+    r = client.patch(url, json={"hidden_warnings": [warning["key"]]})
+    assert r.json()["scene"]["hidden_warnings"] == [warning["key"]]
+    [warning] = client.get(f"/api/games/{gid}/issues").json()["issues"]
+    assert warning["hidden"] is True
+
+    player = client.get(f"/api/games/{gid}/export", params={"format": "player"}).json()
+    assert all("hidden_warnings" not in s for s in player["scenes"])
+
+
 def test_check_endpoint(client, game):
     gid = game["id"]
     r = client.post(

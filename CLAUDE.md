@@ -125,6 +125,11 @@ player, the server's validation/export and the in-browser playtest all use it.
   Never raises on author mistakes: records them in `Runtime.problems`.
 - `validate.py`: every issue (errors block exports) + stats; `refactor.py`: find and
   rename variables/items/scenes/chapters everywhere, including inside text.
+  The "player may get stuck" warning uses `expr/logic.py` (can all of a scene's
+  choice conditions be false at once? opposites like `x`/`not x` share one test).
+  Scene warnings carry a `key`; keys in `Scene.hidden_warnings` mark them `hidden`
+  (the web splits those off in `useIssues`, so counts and badges ignore them). The
+  key changes when what the warning is about changes, so it comes back.
 - `standalone.py`: attach a game to a player executable
   (`[exe][json][MAGIC][len]`). PyInstaller's bootloader scans back to front for its
   own marker, so trailing data is safe. The player loads an attached game when started

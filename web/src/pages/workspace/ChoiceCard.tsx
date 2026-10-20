@@ -49,6 +49,7 @@ export function ChoiceCard({
   onDelete,
   onDuplicate,
   onCreateTarget,
+  onHideIssue,
 }: {
   gameId: string
   index: number
@@ -59,6 +60,7 @@ export function ChoiceCard({
   onDelete: () => void
   onDuplicate: () => void
   onCreateTarget: (title: string) => Promise<string>
+  onHideIssue: (issue: Issue) => void
 }) {
   const [open, setOpen] = useState(focused)
   const ref = useRef<HTMLDivElement | null>(null)
@@ -226,7 +228,7 @@ export function ChoiceCard({
       )}
       {issues.length > 0 && (
         <div className="px-3 pb-3">
-          <IssueList issues={issues} />
+          <IssueList issues={issues} onHide={onHideIssue} />
         </div>
       )}
     </div>

@@ -91,7 +91,7 @@ def _pick(files: list[Path]) -> Path | None:
 
 def _print_issues(console: Console, game: Game, *, errors_only: bool) -> int:
     issues = validate(game)
-    shown = [i for i in issues if i.severity == Severity.ERROR or not errors_only]
+    shown = [i for i in issues if i.severity == Severity.ERROR or not (errors_only or i.hidden)]
     for issue in shown:
         where = " / ".join(
             f"{k} '{v}'"

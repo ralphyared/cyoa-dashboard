@@ -252,3 +252,81 @@ def test_variables_changed_in_text_count_as_used():
     codes = {(i.code, i.variable) for i in validate(game)}
     assert ("unused_variable", "initiative") not in codes
     assert ("write_only_variable", "initiative") in codes
+
+
+def gated_scene(*choices: Choice) -> tuple[Scene, Choice]:
+    entry = Choice(id="to_gate", text="To gate", target="gate")
+    return Scene(id="gate", text="Gate.", choices=list(choices)), entry
+
+
+def softlock(game) -> list:
+    return [i for i in validate(game) if i.code == "possible_softlock"]
+
+
+def test_opposite_conditions_cant_get_stuck():
+    game = make_game()
+    scene, entry = gated_scene(
+        Choice(id="a", text="A", target="start", condition="met_troll"),
+        Choice(id="b", text="B", target="start", condition="not met_troll"),
+    )
+    game.scenes.append(scene)
+    game.scenes[0].choices.append(entry)
+    assert softlock(game) == []
+
+    scene.choices[1].condition = "gold < 3"
+    scene.choices[0].condition = "gold >= 3"
+    assert softlock(game) == []
+
+    # a choice that can only be picked once may be used up
+    scene.choices[0].once = True
+    assert len(softlock(game)) == 1
+
+
+def test_conditions_with_mistakes_dont_count():
+    game = make_game()
+    scene, entry = gated_scene(
+        Choice(id="a", text="A", target="start", condition="nope"),
+        Choice(id="b", text="B", target="start", condition="not nope"),
+    )
+    game.scenes.append(scene)
+    game.scenes[0].choices.append(entry)
+    assert len(softlock(game)) == 1
+
+
+def test_hidden_warning_comes_back_when_the_choices_change():
+    game = make_game()
+    scene, entry = gated_scene(
+        Choice(id="a", text="A", target="start", condition="gold > 3"),
+        Choice(id="b", text="B", target="start", condition="gold < 3"),
+    )
+    game.scenes.append(scene)
+    game.scenes[0].choices.append(entry)
+    [warning] = softlock(game)
+    assert warning.key and warning.key.startswith("possible_softlock:")
+    assert not warning.hidden
+    assert "hidden" not in warning.to_dict()
+
+    scene.hidden_warnings = [warning.key]
+    [warning] = softlock(game)
+    assert warning.hidden
+    assert warning.to_dict()["hidden"] is True
+
+    scene.choices[0].condition = "gold > 4"
+    [warning] = softlock(game)
+    assert not warning.hidden
+
+
+def test_only_scene_warnings_have_keys():
+    game = make_game()
+    game.scenes[0].choices.append(Choice(id="x", text="", target="nowhere"))
+    issues = validate(game)
+    empty = next(i for i in issues if i.code == "empty_choice_text")
+    missing = next(i for i in issues if i.code == "missing_target")
+    assert empty.key and empty.key.startswith("empty_choice_text:")
+    assert missing.key is None  # errors can't be hidden
+
+
+def test_player_export_strips_hidden_warnings(game):
+    game.scenes[0].hidden_warnings = ["dead_end:abc"]
+    assert "hidden_warnings" not in game.to_player_dict()["scenes"][0]
+    assert game.to_project_dict()["scenes"][0]["hidden_warnings"] == ["dead_end:abc"]

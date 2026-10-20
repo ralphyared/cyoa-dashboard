@@ -5,6 +5,8 @@ Errors block exporting a game for players; warnings are worth a look but don't.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from collections import deque
 from collections.abc import Iterator
@@ -24,7 +26,8 @@ from .expr import (
     parse_expression,
     parse_program,
 )
-from .expr.nodes import Assign, Call, Name, Node, Str, walk
+from .expr.logic import one_always_true
+from .expr.nodes import Assign, Call, Expr, Name, Node, Str, walk
 from .model import Game, Scene
 
 VAR_NAME_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
@@ -50,6 +53,10 @@ class Issue:
     field: str | None = None
     start: int | None = None
     end: int | None = None
+    # Scene warnings only: ``key`` identifies the warning so the author can hide
+    # it (``Scene.hidden_warnings``); ``hidden`` is set when they have.
+    key: str | None = None
+    hidden: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {k: v for k, v in asdict(self).items() if v is not None}
@@ -477,7 +484,7 @@ def validate(game: Game) -> list[Issue]:
                     scene=scene.id,
                 )
             )
-        elif all(c.condition.strip() or c.once for c in scene.choices):
+        elif not always_a_choice(scene, env):
             add(
                 Issue(
                     W,
@@ -525,7 +532,48 @@ def validate(game: Game) -> list[Issue]:
                 )
             )
 
+    # -- warnings the author has checked and hidden ---------------------------------------
+    scenes = {s.id: s for s in game.scenes}
+    for issue in issues:
+        scene = scenes.get(issue.scene or "")
+        if issue.severity == W and scene is not None:
+            issue.key = warning_key(issue, scene)
+            if issue.key in scene.hidden_warnings:
+                issue.hidden = True
+
     return issues
+
+
+def always_a_choice(scene: Scene, env: Env) -> bool:
+    """True if some choice can always be picked, whatever the game state.
+
+    A choice that can only be picked once may be used up, so it doesn't count; nor
+    does a condition with mistakes in it (those are false at play time).
+    """
+    conditions: list[Expr] = []
+    for choice in scene.choices:
+        if choice.once:
+            continue
+        if not choice.condition.strip():
+            return True
+        try:
+            node = parse_expression(choice.condition)
+        except ExprError:
+            continue
+        if not check_condition(node, env):
+            conditions.append(node)
+    return one_always_true(conditions)
+
+
+def warning_key(issue: Issue, scene: Scene) -> str:
+    """Names a scene warning for hiding. It changes when what the warning is about
+    changes (for a possible dead end, the choices' conditions), so it comes back."""
+    if issue.code == "possible_softlock":
+        basis: Any = [[c.condition.strip(), c.once] for c in scene.choices]
+    else:
+        basis = [issue.choice, issue.field, issue.message]
+    digest = hashlib.sha256(json.dumps(basis).encode()).hexdigest()[:10]
+    return f"{issue.code}:{digest}"
 
 
 def reachable_scenes(game: Game) -> set[str]:
