@@ -10,11 +10,11 @@ from sqlalchemy.orm import Session
 from cyoa.validate import Severity, validate
 
 from . import store
-from .auth import require_auth
+from .auth import CanEdit, Owner, current_user
 from .deps import get_db
 from .players import PLATFORMS, PlayerStore, PlayerUnavailable, build_export, content_disposition
 
-router = APIRouter(prefix="/api", tags=["players"], dependencies=[Depends(require_auth)])
+router = APIRouter(prefix="/api", tags=["players"], dependencies=[Depends(current_user)])
 DB = Annotated[Session, Depends(get_db)]
 PLATFORM_PATTERN = "^(" + "|".join(PLATFORMS) + ")$"
 
@@ -32,7 +32,7 @@ def players_status(players: Players) -> dict[str, Any]:
 
 
 @router.post("/players/update")
-def update_players(players: Players) -> dict[str, Any]:
+def update_players(players: Players, _: Owner) -> dict[str, Any]:
     """Fetch the newest player release from GitHub."""
     try:
         return players.update()
@@ -46,6 +46,7 @@ def update_players(players: Players) -> dict[str, Any]:
 def standalone_export(
     game_id: str,
     db: DB,
+    _: CanEdit,
     players: Players,
     platform: Annotated[str, Query(pattern=PLATFORM_PATTERN)],
 ) -> Response:

@@ -13,7 +13,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 
-from .auth import require_auth
+from .auth import require_owner
 from .config import Config
 from .deps import get_config
 
@@ -21,7 +21,8 @@ log = logging.getLogger(__name__)
 NAME_RE = re.compile(r"^(auto|manual)-\d{8}-\d{6}\.db$")
 MANUAL_KEEP = 20
 
-router = APIRouter(prefix="/api", tags=["backups"], dependencies=[Depends(require_auth)])
+# Backups hold every game (and every account), so only the owner gets them.
+router = APIRouter(prefix="/api", tags=["backups"], dependencies=[Depends(require_owner)])
 
 
 def create_backup(config: Config, kind: str = "manual") -> Path:

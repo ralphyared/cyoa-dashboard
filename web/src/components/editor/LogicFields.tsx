@@ -20,7 +20,7 @@ import { useMeta } from '@/lib/queries'
 import type { CheckResult, Item, Value, Variable } from '@/lib/types'
 import { useCheck } from '@/lib/useCheck'
 import { ScenePicker } from '../ScenePicker'
-import { Button, Input, Segmented, Select, cx } from '../ui'
+import { Button, Input, Segmented, Select, cx, useReadOnly } from '../ui'
 import { CodeEditor } from './CodeEditor'
 
 type FieldMode = 'builder' | 'code'
@@ -167,6 +167,7 @@ export function ConditionField({
   footer?: (result: CheckResult | undefined) => ReactNode
 }) {
   const meta = useMeta(gameId)
+  const readOnly = useReadOnly()
   const { check, mode, model, setModel, markEmitted, switchTo, notice } = useLogicMode(
     gameId, value, 'condition', toCondition, EMPTY_CONDITION,
   )
@@ -200,27 +201,32 @@ export function ConditionField({
                 items={meta.items}
                 onChange={(r) => update({ ...model, rows: model.rows.map((x, j) => (j === i ? r : x)) })}
               />
-              <Button
-                size="xs"
-                variant="ghost"
-                icon={<X className="size-3.5" />}
-                aria-label="Remove condition"
-                onClick={() => update({ ...model, rows: model.rows.filter((_, j) => j !== i) })}
-              />
+              {!readOnly && (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  icon={<X className="size-3.5" />}
+                  aria-label="Remove condition"
+                  onClick={() => update({ ...model, rows: model.rows.filter((_, j) => j !== i) })}
+                />
+              )}
             </div>
           ))}
           <div className="flex items-center gap-2">
-            <Button
-              size="xs"
-              variant="ghost"
-              icon={<Plus className="size-3.5" />}
-              onClick={() => update({ ...model, rows: [...model.rows, newCondRow(meta.variables, meta.items)] })}
-            >
-              Add condition
-            </Button>
+            {!readOnly && (
+              <Button
+                size="xs"
+                variant="ghost"
+                icon={<Plus className="size-3.5" />}
+                onClick={() => update({ ...model, rows: [...model.rows, newCondRow(meta.variables, meta.items)] })}
+              >
+                Add condition
+              </Button>
+            )}
             {model.rows.length > 1 && (
               <Segmented
                 size="xs"
+                disabled={readOnly}
                 value={model.join}
                 onChange={(join) => update({ ...model, join })}
                 options={[
@@ -441,6 +447,7 @@ export function EffectsField({
   emptyText?: string
 }) {
   const meta = useMeta(gameId)
+  const readOnly = useReadOnly()
   const { check, mode, model, setModel, markEmitted, switchTo, notice } = useLogicMode(
     gameId, value, 'effects', toEffects, EMPTY_EFFECTS,
   )
@@ -465,16 +472,18 @@ export function EffectsField({
                 items={meta.items}
                 onChange={(r) => update(model.map((x, j) => (j === i ? r : x)))}
               />
-              <Button
-                size="xs"
-                variant="ghost"
-                icon={<X className="size-3.5" />}
-                aria-label="Remove effect"
-                onClick={() => update(model.filter((_, j) => j !== i))}
-              />
+              {!readOnly && (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  icon={<X className="size-3.5" />}
+                  aria-label="Remove effect"
+                  onClick={() => update(model.filter((_, j) => j !== i))}
+                />
+              )}
             </div>
           ))}
-          <div className="flex gap-1">
+          <div className={cx('flex gap-1', readOnly && 'hidden')}>
             <Button
               size="xs"
               variant="ghost"

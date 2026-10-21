@@ -1,7 +1,7 @@
 import { AlertTriangle, ChevronRight, CircleAlert, Eye, EyeOff, PartyPopper, X } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import { Button, Empty, Segmented, Spinner, cx } from '@/components/ui'
+import { Button, Empty, Segmented, Spinner, cx, useReadOnly } from '@/components/ui'
 import { plural } from '@/lib/format'
 import { useGameActions, useIssues, useScenes } from '@/lib/queries'
 import type { Issue, Scene } from '@/lib/types'
@@ -45,6 +45,7 @@ export function IssuesPanel({ onClose }: { onClose: () => void }) {
   const actions = useGameActions(gameId)
   const [filter, setFilter] = useState<'all' | 'error' | 'warning'>('all')
   const [showHidden, setShowHidden] = useState(false)
+  const readOnly = useReadOnly()
   const list = useMemo(
     () => (issues.data?.issues ?? []).filter((i) => filter === 'all' || i.severity === filter),
     [issues.data, filter],
@@ -86,7 +87,7 @@ export function IssuesPanel({ onClose }: { onClose: () => void }) {
         <ul className="flex flex-col gap-0.5">
           {list.map((issue, i) => (
             <IssueRow key={i} issue={issue} gameId={gameId} scenes={scenes}>
-              {issue.key && (
+              {issue.key && !readOnly && (
                 <Button
                   size="xs"
                   variant="ghost"
@@ -116,15 +117,17 @@ export function IssuesPanel({ onClose }: { onClose: () => void }) {
               <ul className="flex flex-col gap-0.5 opacity-75">
                 {hidden.map((issue, i) => (
                   <IssueRow key={i} issue={issue} gameId={gameId} scenes={scenes}>
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      className="mt-1 shrink-0 text-zinc-400"
-                      icon={<Eye className="size-3.5" />}
-                      onClick={() => actions.setWarningHidden(issue, false)}
-                    >
-                      Show again
-                    </Button>
+                    {!readOnly && (
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        className="mt-1 shrink-0 text-zinc-400"
+                        icon={<Eye className="size-3.5" />}
+                        onClick={() => actions.setWarningHidden(issue, false)}
+                      >
+                        Show again
+                      </Button>
+                    )}
                   </IssueRow>
                 ))}
               </ul>

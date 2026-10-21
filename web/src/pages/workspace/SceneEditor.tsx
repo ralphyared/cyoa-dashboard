@@ -49,6 +49,7 @@ import {
   Textarea,
   Tip,
   cx,
+  useReadOnly,
 } from '@/components/ui'
 import { slugError } from '@/lib/format'
 import { useGame, useGameActions, useIssues, useMeta, useSaver, useSaveState, useScene } from '@/lib/queries'
@@ -105,6 +106,7 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
   const [showArt, setShowArt] = useState(scene.art.trim() !== '')
   const [showArrival, setShowArrival] = useState(scene.on_enter.trim() !== '')
   const focusChoice = params.get('choice')
+  const readOnly = useReadOnly()
 
   const update = useCallback(
     (changes: Partial<Scene>) => actions.updateScene(scene.pk, changes),
@@ -196,6 +198,7 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
             <input
               ref={titleInput}
               value={scene.title}
+              readOnly={readOnly}
               onChange={(e) => update({ title: e.target.value })}
               placeholder="Scene title (for you; players see the chapter)"
               className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 py-0.5 text-lg font-semibold sm:text-xl text-zinc-100 outline-none placeholder:font-normal placeholder:text-zinc-600 hover:border-surface-700 focus:border-accent-600"
@@ -214,35 +217,47 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
                 <Button size="sm" variant="ghost" icon={<MoreHorizontal className="size-4" />} aria-label="Scene actions" />
               </MenuTrigger>
               <MenuContent>
-                <MenuItem icon={<Pencil className="size-3.5" />} onSelect={() => setRenaming(true)}>
-                  Change id…
-                </MenuItem>
-                <MenuItem
-                  icon={<Star className="size-3.5" />}
-                  disabled={isStart}
-                  onSelect={() => actions.updateMeta({ start_scene: scene.id })}
-                >
-                  Make this the start scene
-                </MenuItem>
+                {!readOnly && (
+                  <>
+                    <MenuItem icon={<Pencil className="size-3.5" />} onSelect={() => setRenaming(true)}>
+                      Change id…
+                    </MenuItem>
+                    <MenuItem
+                      icon={<Star className="size-3.5" />}
+                      disabled={isStart}
+                      onSelect={() => actions.updateMeta({ start_scene: scene.id })}
+                    >
+                      Make this the start scene
+                    </MenuItem>
+                  </>
+                )}
                 <MenuItem icon={<History className="size-3.5" />} onSelect={() => setHistoryOpen(true)}>
                   History…
                 </MenuItem>
-                <MenuItem danger icon={<Trash2 className="size-3.5" />} onSelect={() => setDeleting(true)}>
-                  Delete scene…
-                </MenuItem>
+                {!readOnly && (
+                  <MenuItem danger icon={<Trash2 className="size-3.5" />} onSelect={() => setDeleting(true)}>
+                    Delete scene…
+                  </MenuItem>
+                )}
               </MenuContent>
             </Menu>
           </div>
           <div className="flex flex-wrap items-center gap-2 px-1">
-            <Tip content="The scene's id, used in choices and visited(). Click to change it everywhere.">
-              <button
-                type="button"
-                onClick={() => setRenaming(true)}
-                className="rounded bg-surface-800 px-1.5 py-0.5 font-mono text-xs text-zinc-400 hover:text-zinc-100"
-              >
+            {readOnly ? (
+              <span className="rounded bg-surface-800 px-1.5 py-0.5 font-mono text-xs text-zinc-400" title="The scene's id">
                 {scene.id}
-              </button>
-            </Tip>
+              </span>
+            ) : (
+              <Tip content="The scene's id, used in choices and visited(). Click to change it everywhere.">
+                <button
+                  type="button"
+                  onClick={() => setRenaming(true)}
+                  className="rounded bg-surface-800 px-1.5 py-0.5 font-mono text-xs text-zinc-400 hover:text-zinc-100"
+                >
+                  {scene.id}
+                </button>
+              </Tip>
+            )}
             {isStart && <Badge tone="accent">start scene</Badge>}
             <Select
               className="h-7 w-auto max-w-48 text-xs"
@@ -304,99 +319,106 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
           </div>
         )}
 
-        {generalIssues.length > 0 && <IssueList issues={generalIssues} onHide={hideIssue} />}
+        {generalIssues.length > 0 && <IssueList issues={generalIssues} onHide={readOnly ? undefined : hideIssue} />}
         {hiddenIssues.length > 0 && (
-          <HiddenIssues issues={hiddenIssues} onShow={(issue) => actions.setWarningHidden(issue, false)} />
+          <HiddenIssues
+            issues={hiddenIssues}
+            onShow={readOnly ? undefined : (issue) => actions.setWarningHidden(issue, false)}
+          />
         )}
 
         {/* text */}
         <section className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-1">
-            <ToolbarButton label="Bold" onClick={() => wrap('**', '**', 'bold text')}>
-              <Bold className="size-3.5" />
-            </ToolbarButton>
-            <ToolbarButton label="Italic" onClick={() => wrap('*', '*', 'italic text')}>
-              <Italic className="size-3.5" />
-            </ToolbarButton>
-            <Menu>
-              <Tip content="Color">
-                <MenuTrigger asChild>
-                  <Button size="xs" variant="ghost" icon={<Palette className="size-3.5" />} />
-                </MenuTrigger>
-              </Tip>
-              <MenuContent align="start">
-                {COLORS.map((c) => (
-                  <MenuItem key={c} onSelect={() => wrap(`[${c}]`, `[/${c}]`, 'colored text')}>
-                    <span className="size-2.5 rounded-full" style={{ background: c === 'gray' ? '#71717a' : c }} />
-                    {c}
-                  </MenuItem>
-                ))}
-              </MenuContent>
-            </Menu>
-            <Menu>
-              <Tip content="Insert a variable's value">
-                <MenuTrigger asChild>
-                  <Button size="xs" variant="ghost" icon={<VariableIcon className="size-3.5" />} />
-                </MenuTrigger>
-              </Tip>
-              <MenuContent align="start">
-                {meta?.variables.length === 0 && (
-                  <MenuItem disabled onSelect={() => undefined}>
-                    No variables yet
-                  </MenuItem>
-                )}
-                {meta?.variables.map((v) => (
-                  <MenuItem key={v.name} onSelect={() => insert(`{${v.name}}`)}>
-                    {v.label || v.name} <span className="font-mono text-xs text-zinc-500">{v.name}</span>
-                  </MenuItem>
-                ))}
-                {meta && meta.variables.length > 0 && (
-                  <>
-                    <MenuSeparator />
-                    <MenuItem
-                      onSelect={() => {
-                        const v = meta.variables[0]
-                        const change = v.type === 'number' ? `${v.name} -= 1` : v.type === 'bool' ? `${v.name} = true` : `${v.name} = ""`
-                        insert(`{${change}}`, change.length + 1)
-                      }}
-                    >
-                      Change a variable here…
+          <div className="flex min-h-6 items-center gap-1">
+            {!readOnly && (
+              <>
+                <ToolbarButton label="Bold" onClick={() => wrap('**', '**', 'bold text')}>
+                  <Bold className="size-3.5" />
+                </ToolbarButton>
+                <ToolbarButton label="Italic" onClick={() => wrap('*', '*', 'italic text')}>
+                  <Italic className="size-3.5" />
+                </ToolbarButton>
+                <Menu>
+                  <Tip content="Color">
+                    <MenuTrigger asChild>
+                      <Button size="xs" variant="ghost" icon={<Palette className="size-3.5" />} />
+                    </MenuTrigger>
+                  </Tip>
+                  <MenuContent align="start">
+                    {COLORS.map((c) => (
+                      <MenuItem key={c} onSelect={() => wrap(`[${c}]`, `[/${c}]`, 'colored text')}>
+                        <span className="size-2.5 rounded-full" style={{ background: c === 'gray' ? '#71717a' : c }} />
+                        {c}
+                      </MenuItem>
+                    ))}
+                  </MenuContent>
+                </Menu>
+                <Menu>
+                  <Tip content="Insert a variable's value">
+                    <MenuTrigger asChild>
+                      <Button size="xs" variant="ghost" icon={<VariableIcon className="size-3.5" />} />
+                    </MenuTrigger>
+                  </Tip>
+                  <MenuContent align="start">
+                    {meta?.variables.length === 0 && (
+                      <MenuItem disabled onSelect={() => undefined}>
+                        No variables yet
+                      </MenuItem>
+                    )}
+                    {meta?.variables.map((v) => (
+                      <MenuItem key={v.name} onSelect={() => insert(`{${v.name}}`)}>
+                        {v.label || v.name} <span className="font-mono text-xs text-zinc-500">{v.name}</span>
+                      </MenuItem>
+                    ))}
+                    {meta && meta.variables.length > 0 && (
+                      <>
+                        <MenuSeparator />
+                        <MenuItem
+                          onSelect={() => {
+                            const v = meta.variables[0]
+                            const change = v.type === 'number' ? `${v.name} -= 1` : v.type === 'bool' ? `${v.name} = true` : `${v.name} = ""`
+                            insert(`{${change}}`, change.length + 1)
+                          }}
+                        >
+                          Change a variable here…
+                        </MenuItem>
+                      </>
+                    )}
+                  </MenuContent>
+                </Menu>
+                <ToolbarButton label="Conditional text: only shown when a condition is true" onClick={() => wrap('{if }', '{/if}', 'text')}>
+                  <Braces className="size-3.5" />
+                </ToolbarButton>
+                <ToolbarButton label="Page break (player presses Enter to continue)" onClick={() => insert('\n---\n')}>
+                  <ScissorsLineDashed className="size-3.5" />
+                </ToolbarButton>
+                <Menu>
+                  <Tip content="Timing & effects">
+                    <MenuTrigger asChild>
+                      <Button size="xs" variant="ghost" icon={<Sparkles className="size-3.5" />} aria-label="Timing and effects" />
+                    </MenuTrigger>
+                  </Tip>
+                  <MenuContent align="start">
+                    <MenuItem onSelect={() => insert('[pause 1]')}>Pause 1 second</MenuItem>
+                    <MenuItem onSelect={() => insert('[pause 2]')}>Pause 2 seconds</MenuItem>
+                    <MenuItem onSelect={() => insert('[pause 3]')}>Pause 3 seconds</MenuItem>
+                    <MenuItem onSelect={() => wrap('[type]', '[/type]', 'text that types out')}>
+                      Type out (game speed)
                     </MenuItem>
-                  </>
-                )}
-              </MenuContent>
-            </Menu>
-            <ToolbarButton label="Conditional text: only shown when a condition is true" onClick={() => wrap('{if }', '{/if}', 'text')}>
-              <Braces className="size-3.5" />
-            </ToolbarButton>
-            <ToolbarButton label="Page break (player presses Enter to continue)" onClick={() => insert('\n---\n')}>
-              <ScissorsLineDashed className="size-3.5" />
-            </ToolbarButton>
-            <Menu>
-              <Tip content="Timing & effects">
-                <MenuTrigger asChild>
-                  <Button size="xs" variant="ghost" icon={<Sparkles className="size-3.5" />} aria-label="Timing and effects" />
-                </MenuTrigger>
-              </Tip>
-              <MenuContent align="start">
-                <MenuItem onSelect={() => insert('[pause 1]')}>Pause 1 second</MenuItem>
-                <MenuItem onSelect={() => insert('[pause 2]')}>Pause 2 seconds</MenuItem>
-                <MenuItem onSelect={() => insert('[pause 3]')}>Pause 3 seconds</MenuItem>
-                <MenuItem onSelect={() => wrap('[type]', '[/type]', 'text that types out')}>
-                  Type out (game speed)
-                </MenuItem>
-                <MenuItem onSelect={() => wrap('[type 1]', '[/type]', 'text that types out')}>
-                  Type out very slowly (1)
-                </MenuItem>
-                <MenuItem onSelect={() => wrap('[type 3]', '[/type]', 'text that types out')}>
-                  Type out slowly (3)
-                </MenuItem>
-                <MenuItem onSelect={() => wrap('[type 8]', '[/type]', 'text that types out')}>
-                  Type out quickly (8)
-                </MenuItem>
-                <MenuItem onSelect={() => wrap('[glitch]', '[/glitch]', 'glitching text')}>Glitch</MenuItem>
-              </MenuContent>
-            </Menu>
+                    <MenuItem onSelect={() => wrap('[type 1]', '[/type]', 'text that types out')}>
+                      Type out very slowly (1)
+                    </MenuItem>
+                    <MenuItem onSelect={() => wrap('[type 3]', '[/type]', 'text that types out')}>
+                      Type out slowly (3)
+                    </MenuItem>
+                    <MenuItem onSelect={() => wrap('[type 8]', '[/type]', 'text that types out')}>
+                      Type out quickly (8)
+                    </MenuItem>
+                    <MenuItem onSelect={() => wrap('[glitch]', '[/glitch]', 'glitching text')}>Glitch</MenuItem>
+                  </MenuContent>
+                </Menu>
+              </>
+            )}
             <span className="ml-auto text-xs text-zinc-500">{words.toLocaleString()} words</span>
           </div>
           <CodeEditor
@@ -467,14 +489,16 @@ export function SceneEditor({ scene, compact }: { scene: Scene; compact?: boolea
           </DndContext>
           {!scene.ending && scene.choices.length === 0 && (
             <div className="rounded-md border border-dashed border-surface-600 px-3 py-4 text-center text-sm text-zinc-500">
-              No choices yet. Add one, or mark this scene as an ending.
+              {readOnly ? 'No choices yet.' : 'No choices yet. Add one, or mark this scene as an ending.'}
             </div>
           )}
-          <div>
-            <Button size="sm" icon={<Plus className="size-3.5" />} onClick={() => setChoices([...scene.choices, newChoice()])}>
-              Add choice
-            </Button>
-          </div>
+          {!readOnly && (
+            <div>
+              <Button size="sm" icon={<Plus className="size-3.5" />} onClick={() => setChoices([...scene.choices, newChoice()])}>
+                Add choice
+              </Button>
+            </div>
+          )}
         </section>
 
         {/* incoming */}

@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, Layers, Plus, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Button, Empty, Input, Popover, PopoverContent, PopoverTrigger, cx } from '@/components/ui'
+import { Button, Empty, Input, Popover, PopoverContent, PopoverTrigger, cx, useReadOnly } from '@/components/ui'
 import { slugify, slugError } from '@/lib/format'
 import { useGameActions, useMeta, useScenes } from '@/lib/queries'
 import type { Chapter } from '@/lib/types'
@@ -19,6 +19,7 @@ export function ChaptersPage() {
   const actions = useGameActions(gameId)
   const [title, setTitle] = useState('')
   const [deleting, setDeleting] = useState<Chapter | null>(null)
+  const readOnly = useReadOnly()
   if (!meta) return null
   const chapters = meta.chapters
   const ids = chapters.map((c) => c.id)
@@ -66,7 +67,8 @@ export function ChaptersPage() {
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className="size-6 shrink-0 rounded-full border border-surface-600"
+                      disabled={readOnly}
+                      className="size-6 shrink-0 rounded-full border border-surface-600 disabled:cursor-default"
                       style={{ background: chapter.color || '#3f3f46' }}
                       aria-label="Chapter color"
                     />
@@ -89,15 +91,19 @@ export function ChaptersPage() {
                 <span className="text-xs text-zinc-500 sm:w-20 sm:text-right">
                   {count} scene{count === 1 ? '' : 's'}
                 </span>
-                <Button size="sm" variant="ghost" icon={<ArrowUp className="size-3.5" />} disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up" />
-                <Button size="sm" variant="ghost" icon={<ArrowDown className="size-3.5" />} disabled={i === chapters.length - 1} onClick={() => move(i, 1)} aria-label="Move down" />
-                <Button size="sm" variant="ghost" icon={<Trash2 className="size-3.5" />} onClick={() => setDeleting(chapter)} aria-label="Delete chapter" />
+                {!readOnly && (
+                  <>
+                    <Button size="sm" variant="ghost" icon={<ArrowUp className="size-3.5" />} disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up" />
+                    <Button size="sm" variant="ghost" icon={<ArrowDown className="size-3.5" />} disabled={i === chapters.length - 1} onClick={() => move(i, 1)} aria-label="Move down" />
+                    <Button size="sm" variant="ghost" icon={<Trash2 className="size-3.5" />} onClick={() => setDeleting(chapter)} aria-label="Delete chapter" />
+                  </>
+                )}
               </div>
             )
           })}
         </div>
       )}
-      <form onSubmit={add} className="flex flex-wrap items-start gap-2">
+      <form onSubmit={add} className={cx('flex flex-wrap items-start gap-2', readOnly && 'hidden')}>
         <Input className="w-full sm:w-72" placeholder="New chapter title, e.g. Chapter 1: The Road" value={title} onChange={(e) => setTitle(e.target.value)} />
         <Button type="submit" icon={<Plus className="size-4" />} disabled={!newId || !!idError}>
           Add chapter

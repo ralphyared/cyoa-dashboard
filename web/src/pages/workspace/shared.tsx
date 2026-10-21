@@ -12,6 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
   Spinner,
+  useReadOnly,
 } from '@/components/ui'
 import { api } from '@/lib/api'
 import { slugError, variableNameError } from '@/lib/format'
@@ -152,6 +153,7 @@ export function RenameButton({
   const others = taken.filter((t) => t !== current)
   const error =
     value === current ? null : kind === 'variable' ? variableNameError(value, others) : slugError(value, others)
+  const readOnly = useReadOnly()
 
   async function submit() {
     if (error || value === current) return setOpen(false)
@@ -166,6 +168,7 @@ export function RenameButton({
     }
   }
 
+  if (readOnly) return <span className="px-1 font-mono text-sm text-zinc-200">{current}</span>
   return (
     <>
       <button

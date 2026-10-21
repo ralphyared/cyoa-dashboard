@@ -4,16 +4,23 @@ import type {
   CheckResult,
   GameDetail,
   GameSummary,
+  Invite,
+  InviteInfo,
   IssuesResponse,
   Location,
+  Me,
   Meta,
+  Person,
   PlayerStatus,
   RefKind,
   Reference,
   Revision,
   Scene,
   SceneFields,
+  ShareLevel,
+  Sharing,
   TrashContents,
+  User,
 } from './types'
 
 export class ApiError extends Error {
@@ -56,7 +63,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     } catch {
       // not JSON
     }
-    if (response.status === 401 && path !== '/api/login') onUnauthorized?.()
+    if (response.status === 401 && !path.startsWith('/api/login')) onUnauthorized?.()
     throw new ApiError(response.status, messageFrom(detail, response.statusText), detail)
   }
   return (await response.json()) as T
@@ -73,9 +80,32 @@ export type ScenePatch = Partial<SceneFields> & { id?: string; rev?: number }
 export type SceneUpdateResult = { scene: Scene } | { game: GameDetail }
 
 export const api = {
-  me: () => get<{ authenticated: boolean }>('/api/me'),
-  login: (password: string) => post<{ ok: boolean }>('/api/login', { password }),
+  me: () => get<Me>('/api/me'),
+  login: (username: string, password: string) => post<{ ok: boolean }>('/api/login', { username, password }),
   logout: () => post<{ ok: boolean }>('/api/logout'),
+  renameAccount: (username: string) => patch<User>('/api/me', { username }),
+  changePassword: (current: string, newPassword: string) =>
+    post<{ ok: boolean }>('/api/me/password', { current, new: newPassword }),
+
+  people: () => get<Person[]>('/api/users'),
+  removePerson: (userId: number) => del<{ ok: boolean }>(`/api/users/${userId}`),
+  resetLink: (userId: number) =>
+    post<{ token: string; username: string; expires_at: string }>(`/api/users/${userId}/reset-link`),
+  sharing: (gameId: string) => get<Sharing>(`${g(gameId)}/sharing`),
+  createInvite: (gameId: string, level: ShareLevel, note: string) =>
+    post<Invite & { token: string }>(`${g(gameId)}/invites`, { level, note }),
+  cancelInvite: (gameId: string, inviteId: number) => del<{ ok: boolean }>(`${g(gameId)}/invites/${inviteId}`),
+  setLevel: (gameId: string, userId: number, level: ShareLevel) =>
+    request<{ ok: boolean }>('PUT', `${g(gameId)}/people/${userId}`, { level }),
+  removeAccess: (gameId: string, userId: number) => del<{ ok: boolean }>(`${g(gameId)}/people/${userId}`),
+
+  invite: (token: string) => get<InviteInfo>(`/api/invites/${encodeURIComponent(token)}`),
+  acceptInvite: (token: string) => post<{ game_id: string }>(`/api/invites/${encodeURIComponent(token)}/accept`),
+  joinInvite: (token: string, username: string, password: string) =>
+    post<{ game_id: string }>(`/api/invites/${encodeURIComponent(token)}/join`, { username, password }),
+  passwordReset: (token: string) => get<{ username: string }>(`/api/password-resets/${encodeURIComponent(token)}`),
+  resetPassword: (token: string, password: string) =>
+    post<{ ok: boolean }>(`/api/password-resets/${encodeURIComponent(token)}`, { password }),
 
   games: () => get<GameSummary[]>('/api/games'),
   createGame: (title: string) => post<GameDetail>('/api/games', { title }),

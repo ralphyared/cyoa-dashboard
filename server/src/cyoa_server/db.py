@@ -3,6 +3,9 @@
 A game's small, table-like data (settings, variables, items, rules, chapters)
 lives in one JSON column on the game row. Scenes get a row each, so autosaving
 one scene writes only that scene, and each scene keeps its own revision history.
+
+Every game belongs to the dashboard's owner; other people get access to single
+games through shares (made from invite links).
 """
 
 from __future__ import annotations
@@ -14,6 +17,8 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    Boolean,
+    Connection,
     DateTime,
     Float,
     ForeignKey,
@@ -22,6 +27,7 @@ from sqlalchemy import (
     String,
     create_engine,
     event,
+    inspect,
     text,
 )
 from sqlalchemy.engine import Engine
@@ -82,16 +88,86 @@ class RevisionRow(Base):
     scene_pk: Mapped[int] = mapped_column(ForeignKey("scenes.pk", ondelete="CASCADE"), index=True)
     reason: Mapped[str] = mapped_column(String, default="edit")
     snapshot: Mapped[dict[str, Any]] = mapped_column(JSON)
+    # Who made the change. No foreign key: history outlives removed accounts.
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class UserRow(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String, unique=True)  # stored lowercase
+    # Empty for the owner, whose password is CYOA_PASSWORD.
+    password_hash: Mapped[str] = mapped_column(String, default="")
+    is_owner: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class SessionRow(Base):
     __tablename__ = "sessions"
 
     token_hash: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ShareRow(Base):
+    """One person's access to one game."""
+
+    __tablename__ = "shares"
+
+    game_id: Mapped[str] = mapped_column(
+        ForeignKey("games.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    level: Mapped[str] = mapped_column(String)  # "read" or "edit"
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class InviteRow(Base):
+    """A single-use link that gives whoever opens it access to a game."""
+
+    __tablename__ = "invites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token_hash: Mapped[str] = mapped_column(String, unique=True)
+    game_id: Mapped[str] = mapped_column(ForeignKey("games.id", ondelete="CASCADE"), index=True)
+    level: Mapped[str] = mapped_column(String)
+    note: Mapped[str] = mapped_column(String, default="")  # who it's for, for the owner
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PasswordResetRow(Base):
+    """A single-use link the owner makes for someone who forgot their password."""
+
+    __tablename__ = "password_resets"
+
+    token_hash: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+def _migrate(conn: Connection) -> None:
+    """Bring databases from before accounts existed up to date."""
+    insp = inspect(conn)
+    tables = set(insp.get_table_names())
+
+    def columns(table: str) -> set[str]:
+        return {c["name"] for c in insp.get_columns(table)}
+
+    # Sessions from the single-password days belong to nobody: log in again.
+    if "sessions" in tables and "user_id" not in columns("sessions"):
+        conn.execute(text("DROP TABLE sessions"))
+    if "revisions" in tables and "user_id" not in columns("revisions"):
+        conn.execute(text("ALTER TABLE revisions ADD COLUMN user_id INTEGER"))
 
 
 def make_engine(db_path: Path) -> Engine:
@@ -106,6 +182,8 @@ def make_engine(db_path: Path) -> Engine:
         cur.execute("PRAGMA synchronous=NORMAL")
         cur.close()
 
+    with engine.begin() as conn:
+        _migrate(conn)
     Base.metadata.create_all(engine)
     return engine
 

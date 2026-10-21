@@ -14,7 +14,8 @@ def test_requires_login(anon):
 def test_login_logout(anon):
     assert anon.post("/api/login", json={"password": "nope"}).status_code == 401
     assert anon.post("/api/login", json={"password": PASSWORD}).status_code == 200
-    assert anon.get("/api/me").json() == {"authenticated": True}
+    owner = {"id": 1, "username": "owner", "owner": True}
+    assert anon.get("/api/me").json() == {"authenticated": True, "user": owner}
     assert anon.get("/api/games").status_code == 200
     anon.post("/api/logout")
     assert anon.get("/api/games").status_code == 401

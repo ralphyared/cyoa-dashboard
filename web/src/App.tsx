@@ -2,9 +2,13 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation } from 'react-router'
 import { Spinner } from './components/ui'
 import { useMe } from './lib/queries'
+import { AccountPage } from './pages/AccountPage'
 import { BackupsPage } from './pages/BackupsPage'
 import { GamesPage } from './pages/GamesPage'
+import { InvitePage } from './pages/InvitePage'
 import { LoginPage } from './pages/LoginPage'
+import { PeoplePage } from './pages/PeoplePage'
+import { ResetPage } from './pages/ResetPage'
 import { TrashPage } from './pages/TrashPage'
 import { ChaptersPage } from './pages/workspace/ChaptersPage'
 import { ItemsPage } from './pages/workspace/ItemsPage'
@@ -48,14 +52,29 @@ function RequireAuth() {
   return <Outlet />
 }
 
+/** Pages only the dashboard's owner can use (the server refuses everyone else anyway). */
+function RequireOwner() {
+  const me = useMe()
+  return me.data?.user?.owner ? <Outlet /> : <Navigate to="/" replace />
+}
+
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/invite/:token', element: <InvitePage /> },
+  { path: '/reset/:token', element: <ResetPage /> },
   {
     element: <RequireAuth />,
     children: [
       { path: '/', element: <GamesPage /> },
-      { path: '/trash', element: <TrashPage /> },
-      { path: '/backups', element: <BackupsPage /> },
+      { path: '/account', element: <AccountPage /> },
+      {
+        element: <RequireOwner />,
+        children: [
+          { path: '/trash', element: <TrashPage /> },
+          { path: '/backups', element: <BackupsPage /> },
+          { path: '/people', element: <PeoplePage /> },
+        ],
+      },
       {
         path: '/games/:gameId',
         element: <Workspace />,

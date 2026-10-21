@@ -46,11 +46,12 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from cyoa.runtime import GameError, GameState, Runtime
 
 from . import store
-from .auth import websocket_authorized
+from .auth import access_to, websocket_user
 from .config import Config
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["playtest"])
+GUEST_PLAYTESTS = 1  # at a time, per person; the owner is limited only by the overall cap
 
 
 def _clamp_size(cols: Any, rows: Any) -> tuple[int, int]:
@@ -343,27 +344,36 @@ async def playtest(websocket: WebSocket, game_id: str) -> None:
     app_state = websocket.app.state
     db = app_state.db.new_session()
     try:
-        authorized = websocket_authorized(websocket, db)
-        exists = authorized and db.get(store.GameRow, game_id) is not None
+        user = websocket_user(websocket, db)
+        # Anyone who can read a game can play it (playing never changes the game).
+        allowed = user is not None and access_to(db, user, game_id) is not None
+        exists = allowed and db.get(store.GameRow, game_id) is not None
+        user_id, guest = (user.id, not user.is_owner) if user else (0, True)
     finally:
         db.close()
-    if not authorized:
+    if user is None:
         await websocket.close(code=4401)
         return
     if not exists:
         await websocket.close(code=4404)
         return
     config: Config = app_state.config
+    running = app_state.playtest_users
+    busy = None
     if app_state.playtests >= config.playtest_limit:
+        busy = "too many playtests running; close one first"
+    elif guest and running[user_id] >= GUEST_PLAYTESTS:
+        busy = "you already have a playtest open; close it first"
+    if busy:
         await websocket.accept()
-        await websocket.send_json(
-            {"type": "error", "message": "too many playtests running; close one first"}
-        )
+        await websocket.send_json({"type": "error", "message": busy})
         await websocket.close()
         return
     await websocket.accept()
     app_state.playtests += 1
+    running[user_id] += 1
     try:
         await PlaytestSession(websocket, config, game_id).run()
     finally:
         app_state.playtests -= 1
+        running[user_id] -= 1

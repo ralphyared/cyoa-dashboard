@@ -156,9 +156,11 @@ def scene_api(row: SceneRow) -> dict[str, Any]:
     }
 
 
-def game_api(row: GameRow, scenes: list[SceneRow]) -> dict[str, Any]:
+def game_api(row: GameRow, scenes: list[SceneRow], access: str) -> dict[str, Any]:
+    """The whole game, plus what the person asking may do with it (read/edit/owner)."""
     return {
         "id": row.id,
+        "access": access,
         "rev": row.rev,
         "created_at": aware(row.created_at).isoformat(),
         "updated_at": aware(row.updated_at).isoformat(),
@@ -208,8 +210,12 @@ def snapshot(row: SceneRow) -> dict[str, Any]:
 
 
 def record_revision(db: Session, row: SceneRow, reason: str = "edit") -> None:
-    """Remember the scene's current content. Rapid edits share one revision."""
+    """Remember the scene's current content. Rapid edits by one person share a revision.
+
+    The person is whoever the request's ``current_user`` check found (``db.info``).
+    """
     db.flush()
+    user_id = db.info.get("user_id")
     latest = db.scalars(
         select(RevisionRow)
         .where(RevisionRow.scene_pk == row.pk)
@@ -221,6 +227,7 @@ def record_revision(db: Session, row: SceneRow, reason: str = "edit") -> None:
         reason == "edit"
         and latest is not None
         and latest.reason == "edit"
+        and latest.user_id == user_id
         and stamp - aware(latest.created_at) < REVISION_WINDOW
     ):
         latest.snapshot = snapshot(row)
@@ -231,6 +238,7 @@ def record_revision(db: Session, row: SceneRow, reason: str = "edit") -> None:
                 scene_pk=row.pk,
                 reason=reason,
                 snapshot=snapshot(row),
+                user_id=user_id,
                 created_at=stamp,
                 updated_at=stamp,
             )

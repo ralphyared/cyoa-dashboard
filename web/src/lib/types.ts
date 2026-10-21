@@ -100,8 +100,14 @@ export interface Scene extends SceneFields {
   updated_at: string
 }
 
+/** What the person looking may do with a game. */
+export type Access = 'read' | 'edit' | 'owner'
+/** Levels the owner can share a game at. */
+export type ShareLevel = 'read' | 'edit'
+
 export interface GameDetail {
   id: string
+  access: Access
   rev: number
   created_at: string
   updated_at: string
@@ -117,6 +123,10 @@ export interface GameSummary {
   words: number
   updated_at: string
   deleted_at: string | null
+  /** Only in the games list (not the trash). */
+  access?: Access
+  /** For the owner: how many people the game is shared with. */
+  shared_with?: number
 }
 
 export type Severity = 'error' | 'warning'
@@ -188,6 +198,8 @@ export type AstNode =
 export interface Revision {
   id: number
   reason: string
+  /** Who made the change (null for changes from before accounts existed). */
+  by: string | null
   created_at: string
   updated_at: string
   snapshot: SceneFields & { id: string }
@@ -246,4 +258,42 @@ export interface PlayerStatus {
   version: string | null
   checked_at: string | null
   platforms: { key: string; label: string; available: boolean }[]
+}
+
+// -- accounts and sharing ---------------------------------------------------------
+
+export interface User {
+  id: number
+  username: string
+  owner: boolean
+}
+
+export interface Me {
+  authenticated: boolean
+  user?: User
+}
+
+export interface Person extends User {
+  created_at: string
+  last_login_at: string | null
+  games: { id: string; title: string; level: ShareLevel }[]
+}
+
+export interface Invite {
+  id: number
+  level: ShareLevel
+  note: string
+  created_at: string
+  expires_at: string
+}
+
+export interface Sharing {
+  people: { user_id: number; username: string; level: ShareLevel; since: string }[]
+  invites: Invite[]
+}
+
+export interface InviteInfo {
+  game_title: string
+  level: ShareLevel
+  user: User | null
 }

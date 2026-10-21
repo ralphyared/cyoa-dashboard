@@ -28,6 +28,7 @@ import {
   Segmented,
   Tip,
   cx,
+  useReadOnly,
 } from '@/components/ui'
 import { useScenes } from '@/lib/queries'
 import type { Choice, Issue } from '@/lib/types'
@@ -68,7 +69,11 @@ export function ChoiceCard({
   const navigate = useNavigate()
   const scenes = useScenes(gameId)
   const target = scenes.find((s) => s.id === choice.target)
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: choice.id })
+  const readOnly = useReadOnly()
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: choice.id,
+    disabled: readOnly,
+  })
 
   useEffect(() => {
     if (focused) {
@@ -78,7 +83,7 @@ export function ChoiceCard({
   }, [focused])
 
   useEffect(() => {
-    if (!choice.text && !choice.target) textInput.current?.focus()
+    if (!choice.text && !choice.target && !readOnly) textInput.current?.focus()
     // focus brand-new choices once
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -102,14 +107,16 @@ export function ChoiceCard({
       {/* one row on wide screens; text above destination on phones */}
       <div className="flex flex-col gap-1.5 p-2 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <span
-            {...attributes}
-            {...listeners}
-            className="cursor-grab touch-none text-zinc-600 hover:text-zinc-300"
-            aria-label="Drag to reorder"
-          >
-            <GripVertical className="size-4" />
-          </span>
+          {!readOnly && (
+            <span
+              {...attributes}
+              {...listeners}
+              className="cursor-grab touch-none text-zinc-600 hover:text-zinc-300"
+              aria-label="Drag to reorder"
+            >
+              <GripVertical className="size-4" />
+            </span>
+          )}
           <span className="w-5 shrink-0 text-center font-mono text-xs text-zinc-500">{index + 1})</span>
           <Input
             ref={textInput}
@@ -139,19 +146,21 @@ export function ChoiceCard({
             onClick={() => target && navigate(`/games/${gameId}/scenes/${target.pk}`)}
           />
         </Tip>
-        <Menu>
-          <MenuTrigger asChild>
-            <Button size="sm" variant="ghost" icon={<MoreHorizontal className="size-4" />} aria-label="Choice actions" />
-          </MenuTrigger>
-          <MenuContent>
-            <MenuItem icon={<Copy className="size-3.5" />} onSelect={onDuplicate}>
-              Duplicate
-            </MenuItem>
-            <MenuItem danger icon={<Trash2 className="size-3.5" />} onSelect={onDelete}>
-              Delete choice
-            </MenuItem>
-          </MenuContent>
-        </Menu>
+        {!readOnly && (
+          <Menu>
+            <MenuTrigger asChild>
+              <Button size="sm" variant="ghost" icon={<MoreHorizontal className="size-4" />} aria-label="Choice actions" />
+            </MenuTrigger>
+            <MenuContent>
+              <MenuItem icon={<Copy className="size-3.5" />} onSelect={onDuplicate}>
+                Duplicate
+              </MenuItem>
+              <MenuItem danger icon={<Trash2 className="size-3.5" />} onSelect={onDelete}>
+                Delete choice
+              </MenuItem>
+            </MenuContent>
+          </Menu>
+        )}
         </div>
       </div>
 
@@ -193,6 +202,7 @@ export function ChoiceCard({
                   <span className="text-xs text-zinc-400">When not available:</span>
                   <Segmented
                     size="xs"
+                    disabled={readOnly}
                     value={choice.when_locked}
                     onChange={(when_locked) => set({ when_locked })}
                     options={[
@@ -228,7 +238,7 @@ export function ChoiceCard({
       )}
       {issues.length > 0 && (
         <div className="px-3 pb-3">
-          <IssueList issues={issues} onHide={onHideIssue} />
+          <IssueList issues={issues} onHide={readOnly ? undefined : onHideIssue} />
         </div>
       )}
     </div>

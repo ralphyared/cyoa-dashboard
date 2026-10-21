@@ -5,7 +5,9 @@ import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import clsx, { type ClassValue } from 'clsx'
 import { Loader2, X } from 'lucide-react'
 import {
+  createContext,
   forwardRef,
+  useContext,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
@@ -70,26 +72,47 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
 // -- form fields ------------------------------------------------------------------------
 
+/**
+ * True inside a game the person can only read. Inputs, text areas, selects,
+ * checkboxes and code editors then show their values but can't be changed.
+ * Passing `readOnly` / `disabled` explicitly overrides it (e.g. view filters).
+ */
+export const ReadOnlyContext = createContext(false)
+
+export function useReadOnly(): boolean {
+  return useContext(ReadOnlyContext)
+}
+
 const fieldBase =
   'w-full rounded-md border border-surface-700 bg-surface-900 text-sm text-zinc-100 placeholder:text-zinc-600 ' +
   'focus:border-accent-600 focus:ring-1 focus:ring-accent-600 focus:outline-none disabled:opacity-50'
+// Read-only fields look like normal ones (they're for reading), just without editing.
+const lockedField = 'disabled:cursor-default disabled:opacity-100'
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
-  function Input({ className, ...props }, ref) {
-    return <input ref={ref} className={cx(fieldBase, 'h-8 px-2.5', className)} {...props} />
+  function Input({ className, readOnly, ...props }, ref) {
+    const locked = useReadOnly()
+    return <input ref={ref} readOnly={readOnly ?? locked} className={cx(fieldBase, 'h-8 px-2.5', className)} {...props} />
   },
 )
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
-  function Textarea({ className, ...props }, ref) {
-    return <textarea ref={ref} className={cx(fieldBase, 'px-2.5 py-1.5', className)} {...props} />
+  function Textarea({ className, readOnly, ...props }, ref) {
+    const locked = useReadOnly()
+    return <textarea ref={ref} readOnly={readOnly ?? locked} className={cx(fieldBase, 'px-2.5 py-1.5', className)} {...props} />
   },
 )
 
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(
-  function Select({ className, children, ...props }, ref) {
+  function Select({ className, children, disabled, ...props }, ref) {
+    const locked = useReadOnly() && disabled === undefined
     return (
-      <select ref={ref} className={cx(fieldBase, 'h-8 px-2 pr-7', className)} {...props}>
+      <select
+        ref={ref}
+        disabled={disabled ?? locked}
+        className={cx(fieldBase, 'h-8 px-2 pr-7', locked && lockedField, className)}
+        {...props}
+      >
         {children}
       </select>
     )
@@ -102,21 +125,26 @@ export function Checkbox({
   label,
   className,
   title,
+  disabled,
 }: {
   checked: boolean
   onChange: (checked: boolean) => void
   label: ReactNode
   className?: string
   title?: string
+  disabled?: boolean
 }) {
+  const locked = useReadOnly()
+  const off = disabled ?? locked
   return (
     <label
-      className={cx('inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-300', className)}
+      className={cx('inline-flex items-center gap-2 text-sm text-zinc-300', off ? 'cursor-default' : 'cursor-pointer', className)}
       title={title}
     >
       <input
         type="checkbox"
         checked={checked}
+        disabled={off}
         onChange={(e) => onChange(e.target.checked)}
         className="size-4 rounded border-surface-600 bg-surface-900 accent-cyan-500"
       />
@@ -151,16 +179,19 @@ export function Field({
   )
 }
 
+/** Not affected by read-only mode (it's used for view options too): pass `disabled`. */
 export function Segmented<T extends string>({
   value,
   options,
   onChange,
   size = 'sm',
+  disabled,
 }: {
   value: T
   options: { value: T; label: ReactNode; title?: string }[]
   onChange: (value: T) => void
   size?: 'xs' | 'sm'
+  disabled?: boolean
 }) {
   return (
     <div className="inline-flex rounded-md border border-surface-700 bg-surface-900 p-0.5">
@@ -169,13 +200,16 @@ export function Segmented<T extends string>({
           key={o.value}
           type="button"
           title={o.title}
+          disabled={disabled}
           onClick={() => onChange(o.value)}
           className={cx(
-            'rounded px-2 font-medium transition-colors',
+            'rounded px-2 font-medium transition-colors disabled:cursor-default',
             size === 'xs' ? 'h-5 text-[11px]' : 'h-6 text-xs',
             value === o.value
               ? 'bg-surface-700 text-zinc-100'
-              : 'text-zinc-500 hover:text-zinc-200',
+              : disabled
+                ? 'text-zinc-600'
+                : 'text-zinc-500 hover:text-zinc-200',
           )}
         >
           {o.label}

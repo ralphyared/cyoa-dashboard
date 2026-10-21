@@ -25,15 +25,15 @@ from cyoa.refactor import Kind, find_references, rename
 from cyoa.validate import SLUG_RE, VAR_NAME_RE, build_env, game_stats, validate
 
 from . import store
-from .auth import require_auth
+from .auth import CanEdit, CanRead, current_user
 from .deps import get_db
 
-router = APIRouter(prefix="/api", tags=["tools"], dependencies=[Depends(require_auth)])
+router = APIRouter(prefix="/api", tags=["tools"], dependencies=[Depends(current_user)])
 DB = Annotated[Session, Depends(get_db)]
 
 
 @router.get("/games/{game_id}/issues")
-def issues(game_id: str, db: DB) -> dict[str, Any]:
+def issues(game_id: str, db: DB, _: CanRead) -> dict[str, Any]:
     game = store.load_game_model(db, game_id)
     return {"issues": [i.to_dict() for i in validate(game)], "stats": game_stats(game)}
 
@@ -48,7 +48,7 @@ def _err(e: ExprError) -> dict[str, Any]:
 
 
 @router.post("/games/{game_id}/check")
-def check(game_id: str, body: CheckBody, db: DB) -> dict[str, Any]:
+def check(game_id: str, body: CheckBody, db: DB, _: CanRead) -> dict[str, Any]:
     """Parse and type-check one piece of source as the author types it.
 
     Returns the syntax tree (to drive the visual builders) and, for conditions,
@@ -99,7 +99,7 @@ class RenameBody(BaseModel):
 
 
 @router.post("/games/{game_id}/rename")
-def rename_reference(game_id: str, body: RenameBody, db: DB) -> dict[str, Any]:
+def rename_reference(game_id: str, body: RenameBody, db: DB, access: CanEdit) -> dict[str, Any]:
     """Rename a variable, item, scene or chapter and update everything that uses it."""
     row = store.get_game(db, game_id)
     scenes = store.live_scenes(db, game_id)
@@ -122,11 +122,13 @@ def rename_reference(game_id: str, body: RenameBody, db: DB) -> dict[str, Any]:
         raise HTTPException(409, f"a {body.kind.value} called '{body.new}' already exists")
     store.apply_game(db, row, scenes, rename(game, body.kind, body.old, body.new), reason="rename")
     db.commit()
-    return store.game_api(row, store.live_scenes(db, game_id))
+    return store.game_api(row, store.live_scenes(db, game_id), access)
 
 
 @router.get("/games/{game_id}/references")
-def references(game_id: str, db: DB, kind: Kind, name: Annotated[str, Query()]) -> dict[str, Any]:
+def references(
+    game_id: str, db: DB, _: CanRead, kind: Kind, name: Annotated[str, Query()]
+) -> dict[str, Any]:
     game = store.load_game_model(db, game_id)
     return {"references": find_references(game, kind, name)}
 

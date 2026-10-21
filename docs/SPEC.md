@@ -13,7 +13,7 @@ numbered menus, ANSI colors, ASCII art.
 | Logic authoring | Point-and-click builders that write expressions, with hand-editing as an option. |
 | Editing | Forms to write scenes + a graph view to see/navigate the flow. |
 | Playtest | In-browser terminal running the real CLI player. |
-| Users | Single author (you), password login. |
+| Users | One owner (you, password from `.env`); games can be shared with others at read or edit level (2026-10-21). |
 | Games | Multiple games per dashboard. |
 | Validation | Yes: broken links, dead ends, unreachable scenes, bad expressions. |
 | Player | Python, numbered menus, colors + ASCII art + clear screen, typewriter optional. |
@@ -170,7 +170,16 @@ hand extended, palm up.
 
 ## Dashboard
 
-- **Login:** single password (set via env var), session cookie, rate-limited.
+- **Login:** username + password, session cookie, rate-limited. The owner's password is
+  `CYOA_PASSWORD` (username `owner` by default, changeable on the Account page);
+  everyone else gets an account from an invite link.
+- **Sharing:** the owner shares one game at a time from its Share button: an invite
+  link (single use, 7 days, no email: copied and sent by hand) at **read** (read
+  everything, playtest) or **edit** (change anything in that game). Only the owner
+  creates, imports, duplicates, deletes or shares games, and sees trash, backups and
+  the People page (accounts, password-reset links, removing someone). Readers get the
+  whole editor read-only; the server checks every request. Scene history records who
+  made each change.
 - **Games:** create / rename / duplicate / delete (with confirm), import/export.
 - **Workspace layout:** left sidebar with chapters → scenes tree, search, and tag
   filter; the editor in the center; issues and playtest in a right-hand panel.
@@ -252,6 +261,7 @@ All six milestones are done and deployed (2026-10-18).
 | 2026-10-19 | Changes in scene text | `{x = 1}`, `{hp -= 2}`, `{give("rope")}` anywhere in scene text, including inside `{if}`; applied once when the scene is read on arrival; the text as read is kept for redraws and saves. |
 | 2026-10-19 | Fix: skipping animations | Pressing Enter while text typed or glitched in broke the line (and left glitch symbols behind) on Linux/macOS and in the playtest, because the terminal echoed the key. Keys are now hidden while text animates, and any key skips. Player v1.3.1. |
 | 2026-10-20 | Smarter dead-end warning, hiding warnings | "Every choice has a condition" only warns when the conditions could all be false at once (opposites like `x` / `not x` or `gold >= 3` / `gold < 3` count as covered; choices that can only be picked once don't count). Any scene warning can be hidden ("Hide" in the scene or Problems panel); hidden ones are listed under "Hidden" in Problems and come back when what they're about changes. |
+| 2026-10-21 | Logins and sharing (stage 1) | Owner + guest accounts; Share a game by invite link at "can read" or "can edit"; read-only editor for readers; People page with password-reset links; history shows who changed what. Stage 2 (a "can comment" level with comment threads on scenes) is next. |
 
 Decided against: conditional lines inside effect lists (`if …: x = 1`). Changes in
 scene text cover the same need in the way the author writes.
@@ -259,4 +269,5 @@ scene text cover the same need in the way the author writes.
 ## Still open (ideas, not started)
 
 Dice/random checks, stat-point allocation (Magium-style), achievements, usable
-items from the inventory screen, undo-last-choice, multiple authors.
+items from the inventory screen, undo-last-choice. Sharing stage 2: "can comment"
+(comment threads per scene, quote selected text, resolve; never exported).

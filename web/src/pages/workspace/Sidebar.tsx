@@ -25,7 +25,7 @@ import {
 import { memo, useMemo, useState } from 'react'
 import { NavLink, useNavigate, useParams } from 'react-router'
 import { matchScene } from '@/components/ScenePicker'
-import { Button, Checkbox, Tip, cx } from '@/components/ui'
+import { Button, Checkbox, Tip, cx, useReadOnly } from '@/components/ui'
 import { useGame, useGameActions, useIssues } from '@/lib/queries'
 import type { Chapter, GameDetail, Scene } from '@/lib/types'
 import { issuesByScene, useWorkspace, type SceneIssueCounts } from './context'
@@ -74,6 +74,7 @@ export function Sidebar({ drawer, onClose }: { drawer?: boolean; onClose?: () =>
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [hidden, setHidden] = useState(() => localStorage.getItem('cyoa.sidebarHidden') === '1')
   const counts = useMemo(() => issuesByScene(issues?.issues), [issues])
+  const readOnly = useReadOnly()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const groups = useMemo(() => {
@@ -144,9 +145,11 @@ export function Sidebar({ drawer, onClose }: { drawer?: boolean; onClose?: () =>
           Scenes <span className="text-zinc-600">{data?.scenes.length ?? 0}</span>
         </div>
         <div className="ml-auto flex gap-0.5">
-          <Button size="xs" variant="ghost" icon={<Plus className="size-3.5" />} onClick={() => void newScene()}>
-            New
-          </Button>
+          {!readOnly && (
+            <Button size="xs" variant="ghost" icon={<Plus className="size-3.5" />} onClick={() => void newScene()}>
+              New
+            </Button>
+          )}
           {drawer ? (
             <Button size="sm" variant="ghost" icon={<X className="size-4" />} onClick={onClose} aria-label="Close" />
           ) : (
@@ -166,7 +169,13 @@ export function Sidebar({ drawer, onClose }: { drawer?: boolean; onClose?: () =>
             className="h-7 w-full rounded-md border border-surface-700 bg-surface-950 pr-2 pl-7 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-accent-600"
           />
         </div>
-        <Checkbox className="mt-2 text-xs" checked={problemsOnly} onChange={setProblemsOnly} label="Only scenes with problems" />
+        <Checkbox
+          className="mt-2 text-xs"
+          disabled={false}
+          checked={problemsOnly}
+          onChange={setProblemsOnly}
+          label="Only scenes with problems"
+        />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-4">
         {groups.map((group) => {
@@ -195,7 +204,7 @@ export function Sidebar({ drawer, onClose }: { drawer?: boolean; onClose?: () =>
                         gameId={gameId}
                         isStart={scene.id === data?.start}
                         counts={counts.get(scene.id)}
-                        draggable={!searching && !drawer}
+                        draggable={!searching && !drawer && !readOnly}
                       />
                     ))}
                   </SortableContext>

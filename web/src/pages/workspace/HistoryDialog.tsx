@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { diffWords } from 'diff'
 import { RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Badge, Button, Dialog, Empty, Spinner, cx } from '@/components/ui'
+import { Badge, Button, Dialog, Empty, Spinner, cx, useReadOnly } from '@/components/ui'
 import { api } from '@/lib/api'
 import { dateTime } from '@/lib/format'
 import { useGameActions } from '@/lib/queries'
@@ -54,6 +54,7 @@ export function HistoryDialog({
   })
   const [selected, setSelected] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
+  const readOnly = useReadOnly()
   useEffect(() => {
     if (open) void revisions.refetch()
     // refresh whenever the dialog opens
@@ -90,9 +91,11 @@ export function HistoryDialog({
       footer={
         <>
           <Button onClick={() => onOpenChange(false)}>Close</Button>
-          <Button variant="primary" icon={<RotateCcw className="size-3.5" />} loading={busy} disabled={!revision || identical} onClick={() => void restore()}>
-            Restore this version
-          </Button>
+          {!readOnly && (
+            <Button variant="primary" icon={<RotateCcw className="size-3.5" />} loading={busy} disabled={!revision || identical} onClick={() => void restore()}>
+              Restore this version
+            </Button>
+          )}
         </>
       }
     >
@@ -117,7 +120,10 @@ export function HistoryDialog({
                     {dateTime(r.updated_at)}
                     {i === 0 && <Badge tone="accent">current</Badge>}
                   </span>
-                  <span className="text-xs text-zinc-500">{REASONS[r.reason] ?? r.reason}</span>
+                  <span className="text-xs text-zinc-500">
+                    {REASONS[r.reason] ?? r.reason}
+                    {r.by && <> by {r.by}</>}
+                  </span>
                 </button>
               </li>
             ))}

@@ -4,9 +4,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { CodeEditor } from '@/components/editor/CodeEditor'
 import { ScenePicker } from '@/components/ScenePicker'
-import { Button, Checkbox, Field, Input, Select, Textarea, cx } from '@/components/ui'
+import { Button, Checkbox, Field, Input, Select, Textarea, cx, useReadOnly } from '@/components/ui'
 import { api } from '@/lib/api'
-import { useGameActions, useMeta } from '@/lib/queries'
+import { useAccess, useGameActions, useMeta } from '@/lib/queries'
 import type { Settings } from '@/lib/types'
 import { TYPING_SPEEDS } from '@/lib/typing'
 import { useWorkspace } from './context'
@@ -24,6 +24,8 @@ export function SettingsPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [deleting, setDeleting] = useState(false)
+  const readOnly = useReadOnly()
+  const isOwner = useAccess(gameId) === 'owner'
   if (!meta) return null
   const settings = meta.settings
   const setSettings = (changes: Partial<Settings>) => actions.updateMeta({ settings: { ...settings, ...changes } })
@@ -77,9 +79,10 @@ export function SettingsPage() {
               <button
                 key={name}
                 type="button"
+                disabled={readOnly}
                 onClick={() => setSettings({ accent_color: name })}
                 className={cx(
-                  'flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs',
+                  'flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs disabled:cursor-default',
                   settings.accent_color === name ? 'border-zinc-300 text-zinc-100' : 'border-surface-700 text-zinc-400 hover:border-surface-600',
                 )}
               >
@@ -93,9 +96,11 @@ export function SettingsPage() {
           label={
             <div className="flex items-center justify-between">
               <span>Status bar</span>
-              <Button size="xs" variant="ghost" icon={<Wand2 className="size-3" />} onClick={generateStatus} disabled={meta.variables.length === 0}>
-                Generate from variables
-              </Button>
+              {!readOnly && (
+                <Button size="xs" variant="ghost" icon={<Wand2 className="size-3" />} onClick={generateStatus} disabled={meta.variables.length === 0}>
+                  Generate from variables
+                </Button>
+              )}
             </div>
           }
           hint="Shown at the top of every scene. Use {variable} for values and [red]…[/red] for color. Leave empty for no status bar."
@@ -163,15 +168,17 @@ export function SettingsPage() {
         </Field>
       </section>
 
-      <section className="flex items-center justify-between gap-4 rounded-lg border border-red-500/30 p-4">
-        <div>
-          <div className="text-sm font-medium text-zinc-200">Delete this game</div>
-          <div className="text-xs text-zinc-500">Moves it to the trash. You can restore it from there.</div>
-        </div>
-        <Button variant="danger" icon={<Trash2 className="size-3.5" />} onClick={() => setDeleting(true)}>
-          Delete game
-        </Button>
-      </section>
+      {isOwner && (
+        <section className="flex items-center justify-between gap-4 rounded-lg border border-red-500/30 p-4">
+          <div>
+            <div className="text-sm font-medium text-zinc-200">Delete this game</div>
+            <div className="text-xs text-zinc-500">Moves it to the trash. You can restore it from there.</div>
+          </div>
+          <Button variant="danger" icon={<Trash2 className="size-3.5" />} onClick={() => setDeleting(true)}>
+            Delete game
+          </Button>
+        </section>
+      )}
       <ConfirmDelete
         open={deleting}
         onOpenChange={setDeleting}

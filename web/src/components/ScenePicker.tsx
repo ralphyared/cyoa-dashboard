@@ -3,7 +3,7 @@ import { ChevronsUpDown, Plus, TriangleAlert } from 'lucide-react'
 import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useScenes } from '@/lib/queries'
 import type { Scene } from '@/lib/types'
-import { Popover, PopoverContent, PopoverTrigger } from './ui'
+import { Popover, PopoverContent, PopoverTrigger, useReadOnly } from './ui'
 
 export function sceneLabel(scene: Pick<Scene, 'id' | 'title'>): string {
   return scene.title || scene.id
@@ -41,6 +41,7 @@ export function ScenePicker({
   const [creating, setCreating] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const current = scenes.find((s) => s.id === value)
+  const readOnly = useReadOnly()
 
   const filtered = useMemo(
     () => scenes.filter((s) => matchScene(s, query)).slice(0, 200),
@@ -83,6 +84,24 @@ export function ScenePicker({
   }
 
   const missing = value && !current
+  const shown = (
+    <>
+      {missing && <TriangleAlert className="size-3.5 shrink-0" />}
+      <span className={clsx('min-w-0 flex-1 truncate', !value && 'text-zinc-500')}>
+        {current ? sceneLabel(current) : value ? `${value} (missing)` : allowNone ?? placeholder}
+      </span>
+      {current && current.title && (
+        <span className="shrink-0 font-mono text-[11px] text-zinc-500">{current.id}</span>
+      )}
+    </>
+  )
+  const look = clsx(
+    'flex min-w-0 items-center gap-2 rounded-md border bg-surface-900 px-2.5 text-left text-sm',
+    size === 'sm' ? 'h-7' : 'h-8',
+    missing ? 'border-red-500/60 text-red-300' : 'border-surface-700',
+    className,
+  )
+  if (readOnly) return <div className={look}>{shown}</div>
   return (
     <Popover
       open={open}
@@ -93,23 +112,8 @@ export function ScenePicker({
       }}
     >
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={clsx(
-            'flex min-w-0 items-center gap-2 rounded-md border bg-surface-900 px-2.5 text-left text-sm',
-            'hover:border-zinc-500 focus:border-accent-600 focus:outline-none',
-            size === 'sm' ? 'h-7' : 'h-8',
-            missing ? 'border-red-500/60 text-red-300' : 'border-surface-700',
-            className,
-          )}
-        >
-          {missing && <TriangleAlert className="size-3.5 shrink-0" />}
-          <span className={clsx('min-w-0 flex-1 truncate', !value && 'text-zinc-500')}>
-            {current ? sceneLabel(current) : value ? `${value} (missing)` : allowNone ?? placeholder}
-          </span>
-          {current && current.title && (
-            <span className="shrink-0 font-mono text-[11px] text-zinc-500">{current.id}</span>
-          )}
+        <button type="button" className={clsx(look, 'hover:border-zinc-500 focus:border-accent-600 focus:outline-none')}>
+          {shown}
           <ChevronsUpDown className="size-3.5 shrink-0 text-zinc-500" />
         </button>
       </PopoverTrigger>

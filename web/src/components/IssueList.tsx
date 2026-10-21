@@ -35,7 +35,7 @@ export function IssueList({ issues, onHide }: { issues: Issue[]; onHide?: (issue
 }
 
 /** A scene's hidden warnings, folded into one line that opens to show them again. */
-export function HiddenIssues({ issues, onShow }: { issues: Issue[]; onShow: (issue: Issue) => void }) {
+export function HiddenIssues({ issues, onShow }: { issues: Issue[]; onShow?: (issue: Issue) => void }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="text-xs text-zinc-500">
@@ -52,15 +52,17 @@ export function HiddenIssues({ issues, onShow }: { issues: Issue[]; onShow: (iss
           {issues.map((issue, i) => (
             <li key={i} className="flex items-start gap-2 text-sm">
               <span className="text-zinc-400">{issue.message}</span>
-              <Button
-                size="xs"
-                variant="ghost"
-                className="-my-0.5 ml-auto shrink-0 text-zinc-400"
-                icon={<Eye className="size-3.5" />}
-                onClick={() => onShow(issue)}
-              >
-                Show again
-              </Button>
+              {onShow && (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="-my-0.5 ml-auto shrink-0 text-zinc-400"
+                  icon={<Eye className="size-3.5" />}
+                  onClick={() => onShow(issue)}
+                >
+                  Show again
+                </Button>
+              )}
             </li>
           ))}
         </ul>

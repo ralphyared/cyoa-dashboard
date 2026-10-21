@@ -2,7 +2,7 @@ import { ArrowDown, ArrowUp, GitBranch, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { ConditionField, EffectsField } from '@/components/editor/LogicFields'
 import { ScenePicker } from '@/components/ScenePicker'
-import { Button, Empty, Field, Input } from '@/components/ui'
+import { Button, Empty, Field, Input, useReadOnly } from '@/components/ui'
 import { useGameActions, useIssues, useMeta } from '@/lib/queries'
 import type { Rule } from '@/lib/types'
 import { useWorkspace } from './context'
@@ -21,6 +21,7 @@ export function RulesPage() {
   const actions = useGameActions(gameId)
   const issues = useIssues(gameId).data?.issues ?? []
   const [deleting, setDeleting] = useState<Rule | null>(null)
+  const readOnly = useReadOnly()
   if (!meta) return null
   const rules = meta.rules
   const save = (next: Rule[]) => actions.updateMeta({ rules: next })
@@ -45,13 +46,15 @@ export function RulesPage() {
         </>
       }
       actions={
-        <Button
-          variant="primary"
-          icon={<Plus className="size-4" />}
-          onClick={() => save([...rules, { id: newRuleId(rules), name: '', condition: '', effects: '', goto: null }])}
-        >
-          Add rule
-        </Button>
+        !readOnly && (
+          <Button
+            variant="primary"
+            icon={<Plus className="size-4" />}
+            onClick={() => save([...rules, { id: newRuleId(rules), name: '', condition: '', effects: '', goto: null }])}
+          >
+            Add rule
+          </Button>
+        )
       }
     >
       {rules.length === 0 && <Empty icon={<GitBranch className="size-10" />} title="No rules yet" />}
@@ -66,9 +69,13 @@ export function RulesPage() {
                 placeholder="Rule name (for you), e.g. Death"
                 onChange={(e) => change(i, { name: e.target.value })}
               />
-              <Button size="sm" variant="ghost" icon={<ArrowUp className="size-3.5" />} disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up" />
-              <Button size="sm" variant="ghost" icon={<ArrowDown className="size-3.5" />} disabled={i === rules.length - 1} onClick={() => move(i, 1)} aria-label="Move down" />
-              <Button size="sm" variant="ghost" icon={<Trash2 className="size-3.5" />} onClick={() => setDeleting(rule)} aria-label="Delete rule" />
+              {!readOnly && (
+                <>
+                  <Button size="sm" variant="ghost" icon={<ArrowUp className="size-3.5" />} disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up" />
+                  <Button size="sm" variant="ghost" icon={<ArrowDown className="size-3.5" />} disabled={i === rules.length - 1} onClick={() => move(i, 1)} aria-label="Move down" />
+                  <Button size="sm" variant="ghost" icon={<Trash2 className="size-3.5" />} onClick={() => setDeleting(rule)} aria-label="Delete rule" />
+                </>
+              )}
             </div>
             <ConditionField
               gameId={gameId}

@@ -21,7 +21,7 @@ import { Flag, LayoutGrid, Play, Repeat, Search, Skull, Tag, Trophy, X } from 'l
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { matchScene } from '@/components/ScenePicker'
-import { Button, Checkbox, Dialog, Segmented, Select, cx } from '@/components/ui'
+import { Button, Checkbox, Dialog, Segmented, Select, cx, useReadOnly } from '@/components/ui'
 import { useIsPhone } from '@/lib/media'
 import { useGame, useGameActions, useIssues, useScene } from '@/lib/queries'
 import type { Chapter, GameDetail, Scene } from '@/lib/types'
@@ -137,6 +137,7 @@ function Graph() {
   const [confirmLayout, setConfirmLayout] = useState(false)
   const counts = useMemo(() => issuesByScene(issues?.issues), [issues])
   const isPhone = useIsPhone()
+  const readOnly = useReadOnly()
 
   const scenes = data?.scenes
   const fallback = useMemo(() => (scenes ? layout(scenes, direction) : new Map()), [
@@ -269,8 +270,10 @@ function Graph() {
             for (const n of dragged) payload[Number(n.id)] = [Math.round(n.position.x), Math.round(n.position.y)]
             void actions.setPositions(payload)
           }}
-          onConnect={onConnect}
-          onConnectEnd={onConnectEnd}
+          nodesDraggable={!readOnly}
+          nodesConnectable={!readOnly}
+          onConnect={readOnly ? undefined : onConnect}
+          onConnectEnd={readOnly ? undefined : onConnectEnd}
           fitView
           fitViewOptions={{ maxZoom: 1 }}
           minZoom={0.1}
@@ -299,7 +302,7 @@ function Graph() {
             />
           </form>
           {data.chapters.length > 0 && (
-            <Select className="h-7 w-40 text-xs" value={chapterFilter} onChange={(e) => setChapterFilter(e.target.value)}>
+            <Select className="h-7 w-40 text-xs" disabled={false} value={chapterFilter} onChange={(e) => setChapterFilter(e.target.value)}>
               <option value="">All chapters</option>
               {data.chapters.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -320,11 +323,14 @@ function Graph() {
               { value: 'LR', label: '→', title: 'Left to right' },
             ]}
           />
-          <Button size="sm" icon={<LayoutGrid className="size-3.5" />} onClick={() => setConfirmLayout(true)}>
-            Auto-arrange
-          </Button>
+          {!readOnly && (
+            <Button size="sm" icon={<LayoutGrid className="size-3.5" />} onClick={() => setConfirmLayout(true)}>
+              Auto-arrange
+            </Button>
+          )}
           <Checkbox
             className="text-xs"
+            disabled={false}
             checked={labels}
             onChange={(l) => {
               setLabels(l)
@@ -334,8 +340,9 @@ function Graph() {
           />
         </div>
         <div className="pointer-events-none absolute bottom-3 left-1/2 hidden -translate-x-1/2 rounded bg-surface-900/90 px-2 py-1 text-[11px] text-zinc-500 md:block">
-          Drag from a scene's bottom dot to another scene to add a choice, or to empty space to create a new scene.
-          Dashed lines have conditions.
+          {readOnly
+            ? 'Click a scene to read it. Dashed lines have conditions.'
+            : "Drag from a scene's bottom dot to another scene to add a choice, or to empty space to create a new scene. Dashed lines have conditions."}
         </div>
       </div>
       {selectedScene && (
@@ -347,7 +354,7 @@ function Graph() {
         >
           <div className="flex items-center justify-between border-b border-surface-700 px-3 py-1.5">
             <span className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
-              Edit scene
+              {readOnly ? 'Scene' : 'Edit scene'}
             </span>
             <Button size="sm" variant="ghost" icon={<X className="size-4" />} onClick={() => select(null)} aria-label="Close" />
           </div>

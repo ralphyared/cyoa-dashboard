@@ -1,9 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { BookOpen, Copy, Download, FileUp, MoreHorizontal, Plus, Trash2 } from 'lucide-react'
+import { BookOpen, Copy, Download, FileUp, MoreHorizontal, Plus, Trash2, Users } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { AppHeader } from '@/components/AppHeader'
 import {
+  Badge,
   Button,
   Dialog,
   Empty,
@@ -14,14 +15,17 @@ import {
   MenuSeparator,
   MenuTrigger,
   Spinner,
+  cx,
 } from '@/components/ui'
 import { api } from '@/lib/api'
 import { downloadFile, plural, relativeTime } from '@/lib/format'
-import { useGames } from '@/lib/queries'
+import { useGames, useMe } from '@/lib/queries'
 import type { GameSummary } from '@/lib/types'
+import { LEVELS } from '@/lib/sharing'
 
 export function GamesPage() {
   const games = useGames()
+  const isOwner = useMe().data?.user?.owner ?? false
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [creating, setCreating] = useState(false)
@@ -77,8 +81,8 @@ export function GamesPage() {
       <AppHeader />
       <main className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold text-zinc-100">Your games</h1>
-          <div className="flex gap-2">
+          <h1 className="text-xl font-semibold text-zinc-100">{isOwner ? 'Your games' : 'Shared with you'}</h1>
+          <div className={cx('flex gap-2', !isOwner && 'hidden')}>
             <input
               ref={fileInput}
               type="file"
@@ -106,9 +110,15 @@ export function GamesPage() {
         {games.isLoading ? (
           <Spinner />
         ) : games.data?.length === 0 ? (
-          <Empty icon={<BookOpen className="size-10" />} title="No games yet">
-            Create a new game, or import a project file exported from this dashboard.
-          </Empty>
+          isOwner ? (
+            <Empty icon={<BookOpen className="size-10" />} title="No games yet">
+              Create a new game, or import a project file exported from this dashboard.
+            </Empty>
+          ) : (
+            <Empty icon={<BookOpen className="size-10" />} title="Nothing shared with you yet">
+              When someone shares a game with you, open their invite link and it shows up here.
+            </Empty>
+          )
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {games.data?.map((game) => (
@@ -119,31 +129,45 @@ export function GamesPage() {
                 <Link to={`/games/${game.id}`} className="flex flex-1 flex-col gap-1 p-4">
                   <div className="truncate pr-8 font-medium text-zinc-100">{game.title || 'Untitled'}</div>
                   {game.author && <div className="truncate text-sm text-zinc-500">by {game.author}</div>}
-                  <div className="mt-3 flex gap-3 text-xs text-zinc-500">
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
                     <span>{plural(game.scenes, 'scene')}</span>
                     <span>{plural(game.words, 'word')}</span>
+                    {game.access && game.access !== 'owner' && (
+                      <Badge tone={game.access === 'edit' ? 'accent' : 'neutral'}>{LEVELS[game.access].label.toLowerCase()}</Badge>
+                    )}
+                    {!!game.shared_with && (
+                      <span className="flex items-center gap-1" title="People you've shared it with">
+                        <Users className="size-3" /> {game.shared_with}
+                      </span>
+                    )}
                     <span className="ml-auto">{relativeTime(game.updated_at)}</span>
                   </div>
                 </Link>
-                <div className="absolute top-3 right-3">
+                <div className={cx('absolute top-3 right-3', game.access === 'read' && 'hidden')}>
                   <Menu>
                     <MenuTrigger asChild>
                       <Button variant="ghost" size="sm" icon={<MoreHorizontal className="size-4" />} aria-label="Game actions" />
                     </MenuTrigger>
                     <MenuContent>
-                      <MenuItem icon={<Copy className="size-3.5" />} onSelect={() => void duplicate(game)}>
-                        Duplicate
-                      </MenuItem>
+                      {isOwner && (
+                        <MenuItem icon={<Copy className="size-3.5" />} onSelect={() => void duplicate(game)}>
+                          Duplicate
+                        </MenuItem>
+                      )}
                       <MenuItem
                         icon={<Download className="size-3.5" />}
                         onSelect={() => void downloadFile(api.exportUrl(game.id, 'project'))}
                       >
                         Export project backup
                       </MenuItem>
-                      <MenuSeparator />
-                      <MenuItem danger icon={<Trash2 className="size-3.5" />} onSelect={() => setToDelete(game)}>
-                        Move to trash
-                      </MenuItem>
+                      {isOwner && (
+                        <>
+                          <MenuSeparator />
+                          <MenuItem danger icon={<Trash2 className="size-3.5" />} onSelect={() => setToDelete(game)}>
+                            Move to trash
+                          </MenuItem>
+                        </>
+                      )}
                     </MenuContent>
                   </Menu>
                 </div>

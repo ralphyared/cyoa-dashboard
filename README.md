@@ -53,7 +53,17 @@ snapshot a day, the last 14 kept; more from the Backups page).
 
 **Updating:** `git pull && docker compose up -d --build`.
 
-## Sharing a game
+## Logging in, and letting others in
+
+You log in as `owner` with `CYOA_PASSWORD` (rename yourself on the Account page).
+To let someone read or edit one game, open it and use **Share**: pick "can read" or
+"can edit", create an invite link and send it to them. The link works once, for 7
+days; opening it creates their account. Readers see the whole game and can playtest
+it but can't change anything; editors can change anything in that game. Only you can
+create, delete or share games, and see trash and backups. The **People** page lists
+everyone, makes password links for people who forgot theirs, and removes accounts.
+
+## Exporting for players
 
 *Export → Ready-to-play game* builds a download for your players' system:
 

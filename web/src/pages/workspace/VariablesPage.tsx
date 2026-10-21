@@ -1,6 +1,6 @@
 import { Plus, Sigma, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Button, Empty, Field, Input, Select } from '@/components/ui'
+import { Button, Empty, Field, Input, Select, cx, useReadOnly } from '@/components/ui'
 import { variableNameError } from '@/lib/format'
 import { useGameActions, useMeta } from '@/lib/queries'
 import type { Value, VarType, Variable } from '@/lib/types'
@@ -22,6 +22,7 @@ export function VariablesPage() {
   const [type, setType] = useState<VarType>('number')
   const [touched, setTouched] = useState(false)
   const [deleting, setDeleting] = useState<Variable | null>(null)
+  const readOnly = useReadOnly()
   if (!meta) return null
   const variables = meta.variables
   const names = variables.map((v) => v.name)
@@ -54,7 +55,7 @@ export function VariablesPage() {
     >
       {variables.length === 0 ? (
         <Empty icon={<Sigma className="size-10" />} title="No variables yet">
-          Add one below, e.g. <code>hp</code> as a number.
+          {!readOnly && <>Add one below, e.g. <code>hp</code> as a number.</>}
         </Empty>
       ) : (
         <>
@@ -95,7 +96,7 @@ export function VariablesPage() {
                   </td>
                   <td className="px-3 py-1.5 text-right whitespace-nowrap">
                     <UsagePopover kind="variable" name={v.name} compact />
-                    <Button size="xs" variant="ghost" icon={<Trash2 className="size-3.5" />} aria-label="Delete" onClick={() => setDeleting(v)} />
+                    {!readOnly && <Button size="xs" variant="ghost" icon={<Trash2 className="size-3.5" />} aria-label="Delete" onClick={() => setDeleting(v)} />}
                   </td>
                 </tr>
               ))}
@@ -110,7 +111,7 @@ export function VariablesPage() {
                 {unused.has(v.name) && <UnusedBadge />}
                 <div className="ml-auto flex">
                   <UsagePopover kind="variable" name={v.name} compact />
-                  <Button size="xs" variant="ghost" icon={<Trash2 className="size-3.5" />} aria-label="Delete" onClick={() => setDeleting(v)} />
+                  {!readOnly && <Button size="xs" variant="ghost" icon={<Trash2 className="size-3.5" />} aria-label="Delete" onClick={() => setDeleting(v)} />}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -140,7 +141,7 @@ export function VariablesPage() {
         </>
       )}
 
-      <form onSubmit={add} className="flex flex-wrap items-start gap-2">
+      <form onSubmit={add} className={cx('flex flex-wrap items-start gap-2', readOnly && 'hidden')}>
         <Field error={touched && name ? nameError : null} className="w-full sm:w-56">
           <Input className="font-mono" placeholder="new_variable" value={name} onChange={(e) => setName(e.target.value.toLowerCase())} />
         </Field>

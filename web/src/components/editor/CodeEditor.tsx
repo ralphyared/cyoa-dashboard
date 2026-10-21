@@ -18,7 +18,7 @@ import {
   placeholder as placeholderExt,
   type ViewUpdate,
 } from '@codemirror/view'
-import { cx as clsx } from '../ui'
+import { cx as clsx, useReadOnly } from '../ui'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { useGame } from '@/lib/queries'
 import { TYPING_SPEEDS } from '@/lib/typing'
@@ -194,10 +194,12 @@ export function CodeEditor({
     if (completion) completionRef.current = completion
   })
   const placeholderCompartment = useRef(new Compartment())
+  const readOnly = useReadOnly()
 
   useEffect(() => {
     if (!host.current) return
     const extensions: Extension[] = [
+      EditorState.readOnly.of(readOnly),
       history(),
       closeBrackets(),
       keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, ...completionKeymap]),
@@ -245,7 +247,7 @@ export function CodeEditor({
       view.current = null
     }
     // The editor is created once per mode; other prop changes are synced below.
-  }, [mode, singleLine, prose])
+  }, [mode, singleLine, prose, readOnly])
 
   useEffect(() => {
     view.current?.dispatch({

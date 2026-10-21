@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from 'react'
 import { api } from './api'
 import type { SaveManager, SaveState, SaveStatus } from './save'
-import type { GameDetail, Issue, IssuesData, IssuesResponse, Meta, Scene, SceneFields } from './types'
+import type { Access, GameDetail, Issue, IssuesData, IssuesResponse, Meta, Scene, SceneFields } from './types'
 
 export const gameKey = (gameId: string) => ['game', gameId] as const
 export const issuesKey = (gameId: string) => ['issues', gameId] as const
@@ -22,6 +22,11 @@ export function useGame<T = GameDetail>(gameId: string, select?: (game: GameDeta
     select,
     staleTime: Infinity, // the cache is the editing copy; refetched explicitly
   })
+}
+
+/** What the logged-in person may do with this game. */
+export function useAccess(gameId: string): Access | undefined {
+  return useGame(gameId, (g) => g.access).data
 }
 
 export function useMeta(gameId: string): Meta | undefined {

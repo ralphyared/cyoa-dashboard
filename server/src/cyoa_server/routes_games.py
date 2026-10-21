@@ -14,11 +14,11 @@ from cyoa.model import Game, GameFileError, Scene, game_from_dict
 from cyoa.validate import has_errors, validate
 
 from . import store
-from .auth import require_auth
-from .db import GameRow, SceneRow, aware, now
+from .auth import Access, CanEdit, CanRead, CurrentUser, Owner, current_user, share_counts
+from .db import GameRow, SceneRow, ShareRow, aware, now
 from .deps import get_db
 
-router = APIRouter(prefix="/api", tags=["games"], dependencies=[Depends(require_auth)])
+router = APIRouter(prefix="/api", tags=["games"], dependencies=[Depends(current_user)])
 DB = Annotated[Session, Depends(get_db)]
 
 
@@ -27,14 +27,31 @@ class NewGame(BaseModel):
 
 
 @router.get("/games")
-def list_games(db: DB) -> list[dict[str, Any]]:
-    rows = db.scalars(select(GameRow).where(GameRow.deleted_at.is_(None))).all()
-    summaries = [store.game_summary(r, store.live_scenes(db, r.id)) for r in rows]
+def list_games(db: DB, user: CurrentUser) -> list[dict[str, Any]]:
+    """The owner's games (all of them), or the games shared with this person."""
+    live = GameRow.deleted_at.is_(None)
+    if user.is_owner:
+        counts = share_counts(db)
+        rows = [
+            (r, Access.OWNER.value, counts.get(r.id, 0))
+            for r in db.scalars(select(GameRow).where(live))
+        ]
+    else:
+        shared = db.execute(
+            select(GameRow, ShareRow.level)
+            .join(ShareRow, ShareRow.game_id == GameRow.id)
+            .where(live, ShareRow.user_id == user.id)
+        )
+        rows = [(r, level, 0) for r, level in shared]
+    summaries = [
+        {**store.game_summary(r, store.live_scenes(db, r.id)), "access": access, "shared_with": n}
+        for r, access, n in rows
+    ]
     return sorted(summaries, key=lambda g: g["updated_at"], reverse=True)
 
 
 @router.post("/games", status_code=201)
-def create_game(body: NewGame, db: DB) -> dict[str, Any]:
+def create_game(body: NewGame, db: DB, _: Owner) -> dict[str, Any]:
     title = body.title.strip() or "Untitled"
     game = Game(
         id=store.new_game_id(),
@@ -44,17 +61,19 @@ def create_game(body: NewGame, db: DB) -> dict[str, Any]:
     )
     row = store.create_game(db, game)
     db.commit()
-    return store.game_api(row, store.live_scenes(db, row.id))
+    return store.game_api(row, store.live_scenes(db, row.id), Access.OWNER)
 
 
 @router.get("/games/{game_id}")
-def get_game(game_id: str, db: DB) -> dict[str, Any]:
+def get_game(game_id: str, db: DB, access: CanRead) -> dict[str, Any]:
     row = store.get_game(db, game_id)
-    return store.game_api(row, store.live_scenes(db, game_id))
+    return store.game_api(row, store.live_scenes(db, game_id), access)
 
 
 @router.patch("/games/{game_id}")
-def update_game(game_id: str, db: DB, changes: Annotated[dict[str, Any], Body()]) -> dict[str, Any]:
+def update_game(
+    game_id: str, db: DB, _: CanEdit, changes: Annotated[dict[str, Any], Body()]
+) -> dict[str, Any]:
     """Change game-level fields (title, settings, variables, items, rules, chapters...).
 
     Pass ``rev`` to make sure nobody else changed the game since you loaded it.
@@ -76,7 +95,7 @@ def update_game(game_id: str, db: DB, changes: Annotated[dict[str, Any], Body()]
 
 
 @router.delete("/games/{game_id}")
-def delete_game(game_id: str, db: DB) -> dict[str, bool]:
+def delete_game(game_id: str, db: DB, _: Owner) -> dict[str, bool]:
     row = store.get_game(db, game_id)
     row.deleted_at = now()
     db.commit()
@@ -84,16 +103,16 @@ def delete_game(game_id: str, db: DB) -> dict[str, bool]:
 
 
 @router.post("/games/{game_id}/duplicate", status_code=201)
-def duplicate_game(game_id: str, db: DB) -> dict[str, Any]:
+def duplicate_game(game_id: str, db: DB, _: Owner) -> dict[str, Any]:
     game = store.load_game_model(db, game_id)
     copy = game.model_copy(update={"id": store.new_game_id(), "title": f"{game.title} (copy)"})
     row = store.create_game(db, copy)
     db.commit()
-    return store.game_api(row, store.live_scenes(db, row.id))
+    return store.game_api(row, store.live_scenes(db, row.id), Access.OWNER)
 
 
 @router.post("/games/import", status_code=201)
-def import_game(db: DB, data: Annotated[dict[str, Any], Body()]) -> dict[str, Any]:
+def import_game(db: DB, _: Owner, data: Annotated[dict[str, Any], Body()]) -> dict[str, Any]:
     try:
         game = game_from_dict(data)
     except GameFileError as e:
@@ -107,13 +126,14 @@ def import_game(db: DB, data: Annotated[dict[str, Any], Body()]) -> dict[str, An
         store.check_slug(scene_id)
     row = store.create_game(db, game)
     db.commit()
-    return store.game_api(row, store.live_scenes(db, row.id))
+    return store.game_api(row, store.live_scenes(db, row.id), Access.OWNER)
 
 
 @router.get("/games/{game_id}/export")
 def export_game(
     game_id: str,
     db: DB,
+    _: CanEdit,
     format: Annotated[str, Query(pattern="^(player|project)$")] = "player",
 ) -> Response:
     game = store.load_game_model(db, game_id)
@@ -141,7 +161,7 @@ def export_game(
 
 
 @router.get("/trash")
-def trash(db: DB) -> dict[str, Any]:
+def trash(db: DB, _: Owner) -> dict[str, Any]:
     games = db.scalars(select(GameRow).where(GameRow.deleted_at.is_not(None))).all()
     scene_rows = db.execute(
         select(SceneRow, GameRow)
@@ -166,7 +186,7 @@ def trash(db: DB) -> dict[str, Any]:
 
 
 @router.post("/trash/games/{game_id}/restore")
-def restore_game(game_id: str, db: DB) -> dict[str, bool]:
+def restore_game(game_id: str, db: DB, _: Owner) -> dict[str, bool]:
     row = store.get_game(db, game_id, deleted=True)
     row.deleted_at = None
     store.touch(row)
@@ -175,7 +195,7 @@ def restore_game(game_id: str, db: DB) -> dict[str, bool]:
 
 
 @router.delete("/trash/games/{game_id}")
-def purge_game(game_id: str, db: DB) -> dict[str, bool]:
+def purge_game(game_id: str, db: DB, _: Owner) -> dict[str, bool]:
     row = store.get_game(db, game_id, deleted=True)
     db.delete(row)
     db.commit()

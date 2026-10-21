@@ -1,6 +1,6 @@
 import { Package, Plus, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Button, Checkbox, Empty, Field, Input, Textarea } from '@/components/ui'
+import { Button, Checkbox, Empty, Field, Input, Textarea, cx, useReadOnly } from '@/components/ui'
 import { slugError, slugify } from '@/lib/format'
 import { useGameActions, useMeta } from '@/lib/queries'
 import type { Item } from '@/lib/types'
@@ -16,6 +16,7 @@ export function ItemsPage() {
   const [id, setId] = useState('')
   const [idEdited, setIdEdited] = useState(false)
   const [deleting, setDeleting] = useState<Item | null>(null)
+  const readOnly = useReadOnly()
   if (!meta) return null
   const items = meta.items
   const ids = items.map((i) => i.id)
@@ -69,7 +70,9 @@ export function ItemsPage() {
                 <Checkbox checked={item.stackable} onChange={(stackable) => change(i, { stackable })} label="Stackable" />
                 <div className="flex">
                   <UsagePopover kind="item" name={item.id} />
-                  <Button size="xs" variant="ghost" icon={<Trash2 className="size-3.5" />} aria-label="Delete" onClick={() => setDeleting(item)} />
+                  {!readOnly && (
+                    <Button size="xs" variant="ghost" icon={<Trash2 className="size-3.5" />} aria-label="Delete" onClick={() => setDeleting(item)} />
+                  )}
                 </div>
               </div>
             </div>
@@ -77,7 +80,7 @@ export function ItemsPage() {
         </div>
       )}
 
-      <form onSubmit={add} className="flex flex-wrap items-start gap-2">
+      <form onSubmit={add} className={cx('flex flex-wrap items-start gap-2', readOnly && 'hidden')}>
         <Input className="w-full sm:w-56" placeholder="New item name, e.g. Rusty key" value={name} onChange={(e) => setName(e.target.value)} />
         <Field error={idError} className="w-40 sm:w-48">
           <Input

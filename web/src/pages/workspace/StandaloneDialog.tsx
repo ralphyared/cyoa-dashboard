@@ -6,7 +6,7 @@ import { IssueList } from '@/components/IssueList'
 import { Button, Dialog, Spinner } from '@/components/ui'
 import { api } from '@/lib/api'
 import { downloadFile, relativeTime } from '@/lib/format'
-import { useScenes } from '@/lib/queries'
+import { useAccess, useScenes } from '@/lib/queries'
 import type { Issue } from '@/lib/types'
 import { useWorkspace } from './context'
 import { issueLink } from './Workspace'
@@ -52,6 +52,7 @@ export function StandaloneDialog({ open, onOpenChange }: { open: boolean; onOpen
   const [message, setMessage] = useState<string | null>(null)
   const [issues, setIssues] = useState<Issue[] | null>(null)
   const [updating, setUpdating] = useState(false)
+  const isOwner = useAccess(gameId) === 'owner'
 
   async function exportFor(platform: string) {
     setBusy(platform)
@@ -154,9 +155,11 @@ export function StandaloneDialog({ open, onOpenChange }: { open: boolean; onOpen
           ) : (
             <span>The player is fetched from GitHub the first time you export.</span>
           )}
-          <Button className="ml-auto" size="xs" variant="ghost" icon={<RefreshCw className="size-3" />} loading={updating} onClick={() => void update()}>
-            Check for a newer player
-          </Button>
+          {isOwner && (
+            <Button className="ml-auto" size="xs" variant="ghost" icon={<RefreshCw className="size-3" />} loading={updating} onClick={() => void update()}>
+              Check for a newer player
+            </Button>
+          )}
         </div>
       </div>
     </Dialog>

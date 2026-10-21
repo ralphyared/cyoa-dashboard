@@ -7,6 +7,7 @@ import {
   CircleAlert,
   CloudOff,
   Download,
+  Eye,
   FileJson,
   Gamepad2,
   GitBranch,
@@ -20,6 +21,7 @@ import {
   Play,
   Settings,
   Sigma,
+  UserPlus,
   Workflow,
 } from 'lucide-react'
 import {
@@ -44,6 +46,7 @@ import {
   MenuItem,
   MenuSeparator,
   MenuTrigger,
+  ReadOnlyContext,
   Spinner,
   Tip,
   cx,
@@ -53,6 +56,7 @@ import { downloadFile } from '@/lib/format'
 import { useIsPhone, useMediaQuery } from '@/lib/media'
 import {
   SaveContext,
+  useAccess,
   useGame,
   useIssues,
   useMeta,
@@ -64,6 +68,7 @@ import type { Issue, Scene } from '@/lib/types'
 import { CommandPalette } from './CommandPalette'
 import { useWorkspace, WorkspaceContext, type PanelKind, type PlaytestRequest } from './context'
 import { IssuesPanel, issueTitle } from './IssuesPanel'
+import { ShareDialog } from './ShareDialog'
 import { Sidebar } from './Sidebar'
 import { StandaloneDialog } from './StandaloneDialog'
 
@@ -158,38 +163,40 @@ export function Workspace() {
   return (
     <SaveContext.Provider value={saver}>
       <WorkspaceContext.Provider value={context}>
-        <div className="flex h-full flex-col">
-          <TopBar onOpenNav={() => setNavOpen(true)} />
-          <div className="flex min-h-0 flex-1">
-            {isPhone ? (
-              navOpen && (
-                <div className="fixed inset-0 z-40 flex" role="dialog" aria-label="Scenes">
-                  <div className="flex h-full w-[85vw] max-w-80 shadow-2xl">
-                    <Sidebar drawer onClose={() => setNavOpen(false)} />
+        <ReadOnlyContext.Provider value={game.data?.access === 'read'}>
+          <div className="flex h-full flex-col">
+            <TopBar onOpenNav={() => setNavOpen(true)} />
+            <div className="flex min-h-0 flex-1">
+              {isPhone ? (
+                navOpen && (
+                  <div className="fixed inset-0 z-40 flex" role="dialog" aria-label="Scenes">
+                    <div className="flex h-full w-[85vw] max-w-80 shadow-2xl">
+                      <Sidebar drawer onClose={() => setNavOpen(false)} />
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Close scenes"
+                      className="flex-1 bg-black/60"
+                      onClick={() => setNavOpen(false)}
+                    />
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Close scenes"
-                    className="flex-1 bg-black/60"
-                    onClick={() => setNavOpen(false)}
-                  />
-                </div>
-              )
-            ) : (
-              <Sidebar />
-            )}
-            <main className="min-w-0 flex-1 overflow-hidden">
-              <Outlet />
-            </main>
-            <RightPanel
-              panel={panel}
-              playtestMounted={playtestOpened}
-              fullScreen={panelFullScreen}
-              onClose={() => setPanel(null)}
-            />
+                )
+              ) : (
+                <Sidebar />
+              )}
+              <main className="min-w-0 flex-1 overflow-hidden">
+                <Outlet />
+              </main>
+              <RightPanel
+                panel={panel}
+                playtestMounted={playtestOpened}
+                fullScreen={panelFullScreen}
+                onClose={() => setPanel(null)}
+              />
+            </div>
           </div>
-        </div>
-        <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+          <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+        </ReadOnlyContext.Provider>
       </WorkspaceContext.Provider>
     </SaveContext.Provider>
   )
@@ -203,7 +210,7 @@ export function WorkspaceHome() {
   }).data
   if (target === undefined) return null
   if (target === null) {
-    return <Empty title="No scenes yet">Use “New scene” in the sidebar to write your first scene.</Empty>
+    return <Empty title="No scenes yet">Use “New” in the sidebar to write your first scene.</Empty>
   }
   return <Navigate to={`scenes/${target}`} replace />
 }
@@ -259,6 +266,9 @@ function TopBar({ onOpenNav }: { onOpenNav: () => void }) {
   const { panel, setPanel, playtest, openPalette } = useWorkspace()
   const [exportErrors, setExportErrors] = useState<Issue[] | null>(null)
   const [standaloneOpen, setStandaloneOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  const access = useAccess(gameId)
+  const readOnly = access === 'read'
   const navigate = useNavigate()
   const scenes = useScenes(gameId)
   const scenePk = useGame(gameId, (g) => {
@@ -289,6 +299,15 @@ function TopBar({ onOpenNav }: { onOpenNav: () => void }) {
       <div className="min-w-0 max-w-56 truncate font-semibold text-zinc-100" title={meta?.title}>
         {meta?.title || 'Untitled'}
       </div>
+      {readOnly && (
+        <Tip content="You can read and playtest this game. Changes are turned off.">
+          <span className="shrink-0">
+            <Badge>
+              <Eye className="size-3" /> <span className="hidden sm:inline">Read only</span>
+            </Badge>
+          </span>
+        </Tip>
+      )}
       <nav className="ml-3 hidden items-center gap-0.5 md:flex">
         <NavTab to={scenePk ? `scenes/${scenePk}` : '.'} icon={<ListTree className="size-4" />}>
           Scenes
@@ -307,7 +326,7 @@ function TopBar({ onOpenNav }: { onOpenNav: () => void }) {
         >
           Jump to… <Kbd>Ctrl K</Kbd>
         </button>
-        <SaveIndicator />
+        {!readOnly && <SaveIndicator />}
         <Button
           size="sm"
           variant={panel === 'issues' ? 'secondary' : 'ghost'}
@@ -341,16 +360,23 @@ function TopBar({ onOpenNav }: { onOpenNav: () => void }) {
         >
           <span className="hidden sm:inline">Playtest</span>
         </Button>
-        <Menu>
-          <MenuTrigger asChild>
-            <Button size="sm" className="hidden md:inline-flex" icon={<Download className="size-3.5" />}>
-              Export
-            </Button>
-          </MenuTrigger>
-          <MenuContent>
-            <ExportItems onStandalone={() => setStandaloneOpen(true)} onPlayerFile={() => void exportPlayer()} gameId={gameId} />
-          </MenuContent>
-        </Menu>
+        {access === 'owner' && (
+          <Button size="sm" className="hidden md:inline-flex" icon={<UserPlus className="size-3.5" />} onClick={() => setShareOpen(true)}>
+            Share
+          </Button>
+        )}
+        {!readOnly && (
+          <Menu>
+            <MenuTrigger asChild>
+              <Button size="sm" className="hidden md:inline-flex" icon={<Download className="size-3.5" />}>
+                Export
+              </Button>
+            </MenuTrigger>
+            <MenuContent>
+              <ExportItems onStandalone={() => setStandaloneOpen(true)} onPlayerFile={() => void exportPlayer()} gameId={gameId} />
+            </MenuContent>
+          </Menu>
+        )}
         <Menu>
           <MenuTrigger asChild>
             <Button size="sm" variant="ghost" className="md:hidden" icon={<MoreHorizontal className="size-5" />} aria-label="More" />
@@ -367,12 +393,22 @@ function TopBar({ onOpenNav }: { onOpenNav: () => void }) {
             <MenuItem icon={<ChevronLeft className="size-4" />} onSelect={() => navigate('/')}>
               All games
             </MenuItem>
-            <MenuSeparator />
-            <ExportItems onStandalone={() => setStandaloneOpen(true)} onPlayerFile={() => void exportPlayer()} gameId={gameId} />
+            {access === 'owner' && (
+              <MenuItem icon={<UserPlus className="size-4" />} onSelect={() => setShareOpen(true)}>
+                Share…
+              </MenuItem>
+            )}
+            {!readOnly && (
+              <>
+                <MenuSeparator />
+                <ExportItems onStandalone={() => setStandaloneOpen(true)} onPlayerFile={() => void exportPlayer()} gameId={gameId} />
+              </>
+            )}
           </MenuContent>
         </Menu>
       </div>
       <StandaloneDialog open={standaloneOpen} onOpenChange={setStandaloneOpen} />
+      {access === 'owner' && <ShareDialog open={shareOpen} onOpenChange={setShareOpen} />}
       <Dialog
         open={exportErrors !== null}
         onOpenChange={(open) => !open && setExportErrors(null)}
@@ -490,7 +526,10 @@ function RightPanel({
       {playtestMounted && (
         <div className={cx('flex min-h-0 flex-1 flex-col', panel !== 'playtest' && 'hidden')}>
           <Suspense fallback={<Spinner className="m-4" />}>
-            <PlaytestPanel onClose={onClose} visible={panel === 'playtest'} />
+            {/* Playing never changes the game, so readers get the whole panel. */}
+            <ReadOnlyContext.Provider value={false}>
+              <PlaytestPanel onClose={onClose} visible={panel === 'playtest'} />
+            </ReadOnlyContext.Provider>
           </Suspense>
         </div>
       )}

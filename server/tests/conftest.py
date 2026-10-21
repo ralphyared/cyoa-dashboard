@@ -16,10 +16,52 @@ def config(tmp_path):
 
 
 @pytest.fixture
-def anon(config):
+def app(config):
+    return create_app(config, run_backups=False)
+
+
+@pytest.fixture
+def anon(app):
     limiter.failures.clear()
-    with TestClient(create_app(config, run_backups=False)) as client:
+    with TestClient(app) as client:
         yield client
+
+
+@pytest.fixture
+def browser(app):
+    """Another browser on the same server: ``browser()`` is a fresh, logged-out client."""
+    return lambda: TestClient(app)
+
+
+def invite(owner_client, game_id, level="read", note=""):
+    r = owner_client.post(f"/api/games/{game_id}/invites", json={"level": level, "note": note})
+    assert r.status_code == 201, r.text
+    return r.json()["token"]
+
+
+def join(client, token, username, password="secret-pass"):
+    r = client.post(f"/api/invites/{token}/join", json={"username": username, "password": password})
+    assert r.status_code == 200, r.text
+    return client
+
+
+@pytest.fixture
+def reader(client, game, browser):
+    """Someone the game is shared with, read only."""
+    return join(browser(), invite(client, game["id"], "read"), "riley")
+
+
+@pytest.fixture
+def editor(client, game, browser):
+    """Someone who can edit the game."""
+    return join(browser(), invite(client, game["id"], "edit"), "eden")
+
+
+@pytest.fixture
+def outsider(client, game, browser):
+    """Someone with an account who wasn't given this game."""
+    other = client.post("/api/games", json={"title": "Other"}).json()
+    return join(browser(), invite(client, other["id"], "edit"), "otto")
 
 
 @pytest.fixture

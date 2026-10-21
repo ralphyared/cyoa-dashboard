@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from collections import Counter
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -12,7 +13,16 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, backups, playtest, routes_games, routes_players, routes_scenes, routes_tools
+from . import (
+    auth,
+    backups,
+    playtest,
+    routes_games,
+    routes_people,
+    routes_players,
+    routes_scenes,
+    routes_tools,
+)
 from .config import Config
 from .db import Database
 from .players import PlayerStore
@@ -39,7 +49,10 @@ def create_app(config: Config, *, run_backups: bool = True) -> FastAPI:
     )
     app.state.config = config
     app.state.db = Database(config.db_path)
+    with app.state.db.new_session() as db:
+        auth.ensure_owner(db)
     app.state.playtests = 0
+    app.state.playtest_users = Counter[int]()
     app.state.players = PlayerStore(config.data_dir / "players", config.player_repo)
 
     @app.middleware("http")
@@ -57,6 +70,7 @@ def create_app(config: Config, *, run_backups: bool = True) -> FastAPI:
 
     for module in (
         auth,
+        routes_people,
         routes_games,
         routes_scenes,
         routes_tools,

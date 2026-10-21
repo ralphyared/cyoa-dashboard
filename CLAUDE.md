@@ -88,7 +88,8 @@ format anything you appended to tests too.
   `devices['iPhone 13']` / `devices['iPad (gen 7)']` for mobile. The image is 3.6 GB:
   `docker rmi` it afterwards. Selectors like `text=Variables` can match hidden desktop
   elements on phone layouts; use role or aria-label selectors.
-- **Live site**: log in over HTTPS with an `Origin: https://cyoa.mine-own.dev` header,
+- **Live site**: log in over HTTPS with an `Origin: https://cyoa.mine-own.dev` header
+  (`POST /api/login {"password": …}`; no username means the owner),
   create a temporary game, test, then `DELETE /api/games/{id}` and
   `DELETE /api/trash/games/{id}`.
 
@@ -155,8 +156,18 @@ player, the server's validation/export and the in-browser playtest all use it.
   Windows/Linux = player + attached game (Linux as .tar.gz to keep +x); macOS = zip
   of the unmodified player + game file + "How to play" (changing a signed Mac binary
   breaks its signature).
-- Auth: single password (`CYOA_PASSWORD`), server-side sessions, per-IP and global
-  login rate limits, Origin checks on writes and the WebSocket. Daily backups.
+- Auth and sharing (`auth.py`, `routes_people.py`): accounts in `users`; the owner's
+  password is `CYOA_PASSWORD` (not stored), guests' are scrypt hashes
+  (`passwords.py`). Server-side sessions, per-IP and global login rate limits, Origin
+  checks on writes and the WebSocket. Games are shared per person (`shares`: read or
+  edit) via single-use invite links (`invites`, hashed tokens, 7 days); owners make
+  password-reset links (`password_resets`). **Every route depends on one of
+  `current_user`, `require_owner`, `can_read`, `can_edit`**; `tests/test_access.py`
+  has a table of every route and fails if one is missing or unchecked. Outsiders get
+  404 for games they can't see. `current_user` puts the user id in `db.info`, so
+  `store.record_revision` records who made each change (edits coalesce per person).
+  `db._migrate` upgrades old databases (drops pre-account sessions, adds
+  `revisions.user_id`). Daily backups (owner only: they hold every game and account).
 
 **Web (`web/src`)**: React 19, TanStack Query, React Router, Tailwind v4, CodeMirror 6,
 React Flow, xterm.js.
@@ -174,6 +185,13 @@ React Flow, xterm.js.
   drawer and a ⋯ menu; Problems/Playtest go full-screen below 1024px; playtest shows a
   tap bar on touch screens; inputs are 16px on phones (iOS zoom).
 - Use `cx()` from `components/ui` (clsx + tailwind-merge) so className overrides win.
+- Read-only mode: the workspace sets `ReadOnlyContext` when `game.access === 'read'`.
+  `Input`/`Textarea` become `readOnly`, `Select`/`Checkbox` disabled, `CodeEditor`
+  read-only and `ScenePicker` static, unless a prop says otherwise (view filters pass
+  `disabled={false}`). `Segmented` only takes an explicit `disabled`. Buttons that
+  add/delete/rename are hidden with `useReadOnly()`. The playtest panel is wrapped in
+  `ReadOnlyContext value={false}`: playing never changes the game. `useAccess(gameId)`
+  says read/edit/owner; owner-only pages sit under `RequireOwner` in `App.tsx`.
 
 ## Where to change what
 
@@ -182,4 +200,5 @@ React Flow, xterm.js.
 | New markup tag / text behavior | `engine/src/cyoa/markup.py`, player `effects.py`, `validate.py` (warnings), web `languages.ts` + `CodeEditor.tsx` completion + `SceneEditor.tsx` toolbar, Help (`ReferencePage.tsx`), `docs/FORMAT.md`; then a new player release |
 | New expression function | `expr/checker.py` `FUNCTIONS`, `expr/evaluator.py`, `describe.py` if it gates choices, web completion |
 | New game setting | `model.py` `Settings`, player, web `types.ts` + `SettingsPage.tsx`, `docs/FORMAT.md` |
-| API endpoint | `server/src/cyoa_server/routes_*.py`, web `lib/api.ts` + `types.ts`, server tests |
+| API endpoint | `server/src/cyoa_server/routes_*.py` (with a permission dependency), its row in `ROUTES` in `server/tests/test_access.py`, web `lib/api.ts` + `types.ts`, server tests |
+| Editable field in the workspace | Use the `components/ui` fields (they follow read-only mode); hide add/delete buttons with `useReadOnly()` |
